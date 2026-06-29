@@ -143,6 +143,541 @@ const Confirm = ({ msg, onYes, onNo }) => (
   </div>
 );
 
+
+// ─── BIBLIOTECA DE EXERCÍCIOS ─────────────────────────────────────────────────
+const GRUPOS_CORES = {
+  "Peito":"#E31B1B","Costas":"#9B59B6","Ombros":"#3498DB","Bíceps":"#27AE60",
+  "Tríceps":"#E91E63","Abdômen":"#F39C12","Quadríceps":"#F5C518","Posterior de Coxa":"#FF6B35",
+  "Glúteos":"#FF6B35","Panturrilha":"#1ABC9C","Cardio":"#E74C3C","Alongamentos":"#2ECC71",
+};
+const GRUPOS_EMOJI = {
+  "Peito":"💪","Costas":"🔙","Ombros":"🏋️","Bíceps":"💪","Tríceps":"🤜",
+  "Abdômen":"🎯","Quadríceps":"🦵","Posterior de Coxa":"🦵","Glúteos":"🍑",
+  "Panturrilha":"🦶","Cardio":"🏃","Alongamentos":"🧘",
+};
+
+// Anatomical SVG illustrations - body silhouette with highlighted muscles
+const AnatomySVG = ({ grupo, color="#F5C518", size=88 }) => {
+  const h = size === "card" ? 120 : size;
+  const w = size === "card" ? 88 : size;
+  // Body silhouette parts
+  const body = (
+    <>
+      {/* Head */}
+      <ellipse cx="50" cy="16" rx="10" ry="12" fill="#2a2a2a" stroke="#333" strokeWidth="0.5"/>
+      {/* Neck */}
+      <rect x="45" y="27" width="10" height="8" rx="2" fill="#2a2a2a"/>
+      {/* Torso */}
+      <path d="M30 35 L20 95 L35 95 L38 75 L50 78 L62 75 L65 95 L80 95 L70 35 Z" fill="#222" stroke="#333" strokeWidth="0.5"/>
+      {/* Arms */}
+      <path d="M30 38 L15 70 L20 72 L32 48 Z" fill="#2a2a2a"/>
+      <path d="M70 38 L85 70 L80 72 L68 48 Z" fill="#2a2a2a"/>
+      {/* Forearms */}
+      <path d="M15 70 L10 95 L18 95 L20 72 Z" fill="#2a2a2a"/>
+      <path d="M85 70 L90 95 L82 95 L80 72 Z" fill="#2a2a2a"/>
+      {/* Legs */}
+      <path d="M35 95 L30 145 L44 145 L50 115 L56 145 L70 145 L65 95 Z" fill="#2a2a2a"/>
+      {/* Lower legs */}
+      <path d="M30 145 L28 175 L38 175 L44 145 Z" fill="#2a2a2a"/>
+      <path d="M56 145 L62 175 L72 175 L70 145 Z" fill="#2a2a2a"/>
+    </>
+  );
+
+  const highlights = {
+    "Peito": <path d="M32 38 L68 38 L70 60 L65 65 L50 68 L35 65 L30 60 Z" fill={color} opacity="0.85"/>,
+    "Costas": <path d="M31 38 L69 38 L67 68 L62 72 L50 74 L38 72 L33 68 Z" fill={color} opacity="0.8"/>,
+    "Ombros": <><ellipse cx="27" cy="42" rx="10" ry="8" fill={color} opacity="0.85"/><ellipse cx="73" cy="42" rx="10" ry="8" fill={color} opacity="0.85"/></>,
+    "Bíceps": <><path d="M18 48 L30 46 L32 62 L18 64 Z" fill={color} opacity="0.85"/><path d="M70 46 L82 48 L82 64 L68 62 Z" fill={color} opacity="0.85"/></>,
+    "Tríceps": <><path d="M14 50 L20 48 L18 70 L12 68 Z" fill={color} opacity="0.85"/><path d="M80 48 L86 50 L88 68 L82 70 Z" fill={color} opacity="0.85"/></>,
+    "Abdômen": <><rect x="38" y="60" width="24" height="8" rx="3" fill={color} opacity="0.85"/><rect x="38" y="71" width="24" height="8" rx="3" fill={color} opacity="0.85"/><rect x="38" y="82" width="24" height="8" rx="3" fill={color} opacity="0.85"/></>,
+    "Quadríceps": <><path d="M35 95 L44 95 L46 138 L31 138 Z" fill={color} opacity="0.85"/><path d="M56 95 L65 95 L69 138 L54 138 Z" fill={color} opacity="0.85"/></>,
+    "Posterior de Coxa": <><path d="M36 95 L44 95 L43 135 L33 135 Z" fill={color} opacity="0.8"/><path d="M56 95 L64 95 L67 135 L57 135 Z" fill={color} opacity="0.8"/></>,
+    "Glúteos": <path d="M33 88 L67 88 L68 100 L62 105 L50 107 L38 105 L32 100 Z" fill={color} opacity="0.85"/>,
+    "Panturrilha": <><path d="M29 145 L38 145 L36 172 L27 172 Z" fill={color} opacity="0.85"/><path d="M62 145 L71 145 L73 172 L62 172 Z" fill={color} opacity="0.85"/></>,
+    "Cardio": <><ellipse cx="44" cy="56" rx="10" ry="13" fill={color} opacity="0.7"/><ellipse cx="56" cy="56" rx="10" ry="13" fill={color} opacity="0.7"/><path d="M34 56 Q50 76 66 56" fill={color} opacity="0.6"/></>,
+    "Alongamentos": <><path d="M32 38 L68 38 L70 95 L30 95 Z" fill={color} opacity="0.3"/><path d="M33 95 L35 138 L65 138 L67 95 Z" fill={color} opacity="0.3"/></>,
+  };
+
+  return (
+    <svg width={w} height={h} viewBox="0 0 100 185" style={{ display:"block", background:T.bg2, borderRadius:8 }}>
+      <rect width="100" height="185" fill={T.bg2}/>
+      {/* Subtle grid */}
+      <line x1="50" y1="0" x2="50" y2="185" stroke="#1a1a1a" strokeWidth="0.5"/>
+      <line x1="0" y1="92" x2="100" y2="92" stroke="#1a1a1a" strokeWidth="0.5"/>
+      {body}
+      {highlights[grupo] || <ellipse cx="50" cy="92" rx="30" ry="30" fill={color} opacity="0.3"/>}
+      {/* Label */}
+      <text x="50" y="182" textAnchor="middle" fill={color} fontSize="5" fontWeight="bold">{grupo?.toUpperCase()}</text>
+    </svg>
+  );
+};
+
+const BIBLIOTECA = [
+  { id:"p1",grupo:"Peito",nome:"Supino Reto com Barra",principais:["Peitoral maior"],secundarios:["Tríceps","Deltóide anterior"],
+    desc:"Exercício fundamental para desenvolvimento do peitoral com sobrecarga elevada.",
+    passos:["Deite no banco com os pés apoiados no chão","Segure a barra com pegada maior que a largura dos ombros","Desça a barra controladamente até tocar o peito","Empurre a barra para cima expirando o ar","Mantenha os cotovelos a 45° do corpo"],
+    erros:["Quicar a barra no peito","Tirar os pés do chão","Arquear excessivamente a lombar"],
+    cuidados:["Use trava de segurança","Tenha um parceiro de treino","Mantenha as escápulas retraídas"],
+    series:"4",reps:"10-12",descanso:"90s",video:"" },
+  { id:"p2",grupo:"Peito",nome:"Supino Inclinado com Halteres",principais:["Peitoral superior"],secundarios:["Tríceps","Deltóide anterior"],
+    desc:"Foca na porção superior do peitoral, dando volume na parte de cima do peito.",
+    passos:["Ajuste o banco a 30-45°","Segure os halteres ao lado do peito","Empurre para cima e levemente para dentro","Desça controladamente","Mantenha a curvatura natural da coluna"],
+    erros:["Banco muito inclinado (>45°)","Descida rápida sem controle"],
+    cuidados:["Peça ajuda para posicionar os halteres","Escápulas sempre retraídas"],
+    series:"3-4",reps:"10-12",descanso:"75s",video:"" },
+  { id:"p3",grupo:"Peito",nome:"Crucifixo com Halteres",principais:["Peitoral maior"],secundarios:["Deltóide anterior"],
+    desc:"Isolamento do peitoral com grande amplitude, ótimo para definição.",
+    passos:["Deite no banco com halteres acima do peito","Abra os braços em arco controlado","Desça até sentir o alongamento","Feche como se abraçasse uma árvore","Mantenha leve flexão nos cotovelos"],
+    erros:["Braços completamente estendidos","Descer demais","Carga muito pesada"],
+    cuidados:["Mantenha cotovelos levemente flexionados","Movimento de arco, não de press"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"p4",grupo:"Peito",nome:"Crossover no Cabo",principais:["Peitoral maior"],secundarios:["Deltóide anterior"],
+    desc:"Cabo mantém tensão constante no peitoral durante todo o movimento.",
+    passos:["Polias na altura dos ombros","Segure as alças e dê um passo à frente","Traga as mãos para o centro cruzando levemente","Controle o retorno","Tronco levemente inclinado"],
+    erros:["Usar o impulso do corpo","Não cruzar as mãos no final"],
+    cuidados:["Core ativado","Não trancar os cotovelos"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"p5",grupo:"Peito",nome:"Mergulho no Paralelo (Fundos)",principais:["Peitoral inferior","Tríceps"],secundarios:["Deltóide anterior"],
+    desc:"Composto de peso corporal para peitoral inferior e tríceps com grande amplitude.",
+    passos:["Apoie nas barras paralelas","Incline o tronco para frente","Desça até os cotovelos chegarem a 90°","Suba estendendo completamente","Para mais peitoral, incline mais o tronco"],
+    erros:["Não inclinar o tronco","Descer demais lesionando o ombro"],
+    cuidados:["Iniciantes usem banco de apoio","Não desça além de 90° nos cotovelos"],
+    series:"3-4",reps:"8-12",descanso:"90s",video:"" },
+  // COSTAS
+  { id:"c1",grupo:"Costas",nome:"Puxada Frontal na Polia",principais:["Latíssimo do dorso"],secundarios:["Bíceps","Rombóides"],
+    desc:"Principal exercício para largura das costas, criando o formato em V.",
+    passos:["Prenda os joelhos sob o suporte","Pegada larga pronada","Puxe até a altura do queixo","Controle o retorno","Peito alto durante o movimento"],
+    erros:["Puxar atrás da nuca","Usar demais o bíceps","Curvar a coluna"],
+    cuidados:["Inicie o movimento com a escápula","Cotovelhos apontados para baixo"],
+    series:"4",reps:"10-12",descanso:"75s",video:"" },
+  { id:"c2",grupo:"Costas",nome:"Remada Curvada com Barra",principais:["Latíssimo","Rombóides","Trapézio"],secundarios:["Bíceps"],
+    desc:"Composto de alta intensidade para espessura e densidade das costas.",
+    passos:["Incline o tronco a 45° com costas retas","Pegada pronada","Puxe em direção ao umbigo","Contraia as escápulas ao final","Desça controladamente"],
+    erros:["Curvar a lombar","Usar impulso do tronco","Puxar muito alto"],
+    cuidados:["Coluna neutra","Core sempre contraído","Use cinto para cargas pesadas"],
+    series:"4",reps:"8-12",descanso:"90s",video:"" },
+  { id:"c3",grupo:"Costas",nome:"Remada Unilateral com Halter",principais:["Latíssimo","Rombóides"],secundarios:["Bíceps"],
+    desc:"Unilateral que permite maior amplitude e correção de desequilíbrios.",
+    passos:["Apoie joelho e mão no banco","Segure o halter com braço estendido","Puxe em direção ao quadril","Gire levemente o tronco no final","Controle a descida"],
+    erros:["Rotar demais o tronco","Puxar com bíceps","Não completar a amplitude"],
+    cuidados:["Coluna paralela ao chão","Foco no cotovelo","Retraia a escápula no topo"],
+    series:"3-4",reps:"10-12 cada",descanso:"60s",video:"" },
+  { id:"c4",grupo:"Costas",nome:"Levantamento Terra",principais:["Eretores","Glúteos","Isquiotibiais"],secundarios:["Trapézio","Quadríceps"],
+    desc:"Exercício mais completo da musculação, trabalhando a cadeia posterior inteira.",
+    passos:["Barra sobre o meio do pé","Segure com pegada mista ou dupla pronada","Coluna neutra, peito alto","Empurre o chão subindo quadril e tronco juntos","Estenda completamente ao final"],
+    erros:["Arredondar a lombar (altamente lesivo)","Barra afastada do corpo","Quadril subindo antes do tronco"],
+    cuidados:["Nunca arredonde a lombar","Use cinto para cargas pesadas","Domine a técnica antes de aumentar carga"],
+    series:"4",reps:"5-8",descanso:"120s",video:"" },
+  { id:"c5",grupo:"Costas",nome:"Pulldown com Triângulo",principais:["Latíssimo do dorso"],secundarios:["Bíceps","Peitoral menor"],
+    desc:"Variação da puxada com pegada neutra, maior conforto nos ombros.",
+    passos:["Polia alta com triângulo","Puxe até o peito","Cotovelhos apontam para baixo","Controle o retorno","Peito alto e escápulas retraídas"],
+    erros:["Inclinar demais para trás","Soltar a carga no retorno"],
+    cuidados:["Pegada neutra é mais segura para os ombros","Foco no latíssimo"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  // OMBROS
+  { id:"o1",grupo:"Ombros",nome:"Desenvolvimento com Halteres",principais:["Deltóide medial","Deltóide anterior"],secundarios:["Trapézio","Tríceps"],
+    desc:"Principal exercício para desenvolvimento da massa e largura dos ombros.",
+    passos:["Sentado ou em pé com costas apoiadas","Halteres na altura dos ombros","Empurre para cima","Desça controladamente","Core ativado durante todo o movimento"],
+    erros:["Arquear a lombar","Subir os ombros","Usar impulso do tronco"],
+    cuidados:["Não hiper-estenda a lombar","Escápulas estabilizadas"],
+    series:"4",reps:"10-12",descanso:"75s",video:"" },
+  { id:"o2",grupo:"Ombros",nome:"Elevação Lateral com Halteres",principais:["Deltóide medial"],secundarios:["Trapézio superior"],
+    desc:"Isolamento para deltóide médio, essencial para amplitude de ombros.",
+    passos:["Em pé com halteres ao lado","Eleve os braços lateralmente até a altura dos ombros","Polegar levemente mais baixo que o mindinho","Controle a descida por 2-3 segundos","Leve flexão nos cotovelos"],
+    erros:["Usar o trapézio (encolher o ombro)","Levantar acima dos ombros","Impulso das pernas"],
+    cuidados:["Carga leve a moderada","Foco na queima do deltóide médio"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  { id:"o3",grupo:"Ombros",nome:"Desenvolvimento Arnold",principais:["Deltóide (todas as cabeças)"],secundarios:["Trapézio","Tríceps"],
+    desc:"Ativa as três cabeças do deltóide em um único movimento.",
+    passos:["Halteres na frente do rosto, palmas para você","Gire os halteres para fora enquanto sobe","No topo, palmas para frente","Inverta na descida","Movimento fluido e controlado"],
+    erros:["Fazer muito rápido","Carga excessiva","Arquear a lombar"],
+    cuidados:["Use carga menor que o desenvolvimento tradicional","Excelente variação"],
+    series:"3-4",reps:"10-12",descanso:"75s",video:"" },
+  { id:"o4",grupo:"Ombros",nome:"Elevação Frontal",principais:["Deltóide anterior"],secundarios:["Peitoral superior"],
+    desc:"Isola a porção anterior do deltóide.",
+    passos:["Em pé com halteres na frente das coxas","Eleve até a altura dos ombros","Palma da mão voltada para baixo","Controle a descida","Cotovelos levemente flexionados"],
+    erros:["Levantar acima dos ombros","Usar o impulso do tronco"],
+    cuidados:["O ombro anterior já recebe estímulo no supino","Use carga moderada"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"o5",grupo:"Ombros",nome:"Encolhimento (Shrug)",principais:["Trapézio superior"],secundarios:["Levantador da escápula"],
+    desc:"Exercício específico para o trapézio superior.",
+    passos:["Em pé com halteres ou barra","Eleve os ombros em direção às orelhas","Segure 1-2 segundos no topo","Desça controladamente","Não role os ombros"],
+    erros:["Rolar os ombros","Usar impulso","Não completar a amplitude"],
+    cuidados:["Movimento vertical, não circular","Cuidado com histórico de pescoço"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  // BÍCEPS
+  { id:"b1",grupo:"Bíceps",nome:"Rosca Direta com Barra",principais:["Bíceps braquial"],secundarios:["Braquial","Braquiorradial"],
+    desc:"Exercício clássico e mais eficiente para o bíceps.",
+    passos:["Em pé com barra em pegada supinada","Cotovelhos fixos ao tronco","Flexione trazendo a barra até os ombros","Contraia no topo por 1 segundo","Desça até a extensão quase completa"],
+    erros:["Mover os cotovelos para frente","Usar impulso das costas","Não completar a descida"],
+    cuidados:["Cotovelhos fixos são essenciais","Só os antebraços se movem"],
+    series:"3-4",reps:"10-12",descanso:"60s",video:"" },
+  { id:"b2",grupo:"Bíceps",nome:"Rosca Alternada com Halteres",principais:["Bíceps braquial"],secundarios:["Braquial"],
+    desc:"Permite supinação completa para máxima contração do bíceps.",
+    passos:["Em pé ou sentado com halteres ao lado","Inicie com palma voltada para o corpo","Flexione o cotovelo girando o antebraço","Palma sobe no topo (supinação)","Alterne os braços"],
+    erros:["Não supinar o antebraço","Mover o cotovelo para frente","Balançar o tronco"],
+    cuidados:["A supinação diferencia de uma simples flexão","Não perca a tensão na descida"],
+    series:"3",reps:"10-12 cada",descanso:"60s",video:"" },
+  { id:"b3",grupo:"Bíceps",nome:"Rosca Martelo",principais:["Braquiorradial","Braquial"],secundarios:["Bíceps braquial"],
+    desc:"Foca no braquial e braquiorradial, criando espessura no braço.",
+    passos:["Pegada neutra (como martelo)","Cotovelhos fixos ao tronco","Flexione sem girar os pulsos","Suba até próximo ao ombro","Desça controladamente"],
+    erros:["Girar o pulso no movimento","Usar o impulso"],
+    cuidados:["Pegada neutra durante todo o movimento","Trabalha o antebraço também"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"b4",grupo:"Bíceps",nome:"Rosca Concentrada",principais:["Bíceps (pico)"],secundarios:["Braquial"],
+    desc:"Máximo isolamento para o pico do bíceps.",
+    passos:["Sente com pés afastados","Cotovelo interno na coxa interna","Flexione trazendo o peso ao ombro","Gire o pulso para fora no topo","Descida controlada"],
+    erros:["Mover o cotovelo do apoio","Carga muito pesada"],
+    cuidados:["O cotovelo não deve sair do apoio","Excelente para pico do bíceps"],
+    series:"3",reps:"12-15",descanso:"45s",video:"" },
+  // TRÍCEPS
+  { id:"t1",grupo:"Tríceps",nome:"Tríceps Pulley (Corda)",principais:["Tríceps (cabeça lateral)"],secundarios:["Tríceps (cabeça longa e medial)"],
+    desc:"Exercício mais popular para tríceps com tensão constante.",
+    passos:["Polia alta com corda","Cotovelhos fixos ao tronco","Empurre para baixo estendendo os cotovelos","Abra a corda ao final","Controle o retorno até 90°"],
+    erros:["Mover os cotovelos","Inclinar demais o tronco","Não abrir a corda"],
+    cuidados:["Cotovelhos grudados ao corpo","Foco na extensão completa"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  { id:"t2",grupo:"Tríceps",nome:"Tríceps Testa com Barra EZ",principais:["Tríceps (cabeça longa)"],secundarios:["Tríceps (cabeças medial e lateral)"],
+    desc:"Foca na cabeça longa do tríceps, responsável pelo volume.",
+    passos:["Deite no banco com a barra EZ acima do peito","Cotovelhos apontados para o teto","Dobre os cotovelos trazendo a barra à testa","Estenda completamente","Cotovelhos na mesma posição"],
+    erros:["Mover os cotovelos para o lado","Descer abaixo da testa","Carga excessiva"],
+    cuidados:["Barra EZ é mais segura para os pulsos","Tenha um spotter"],
+    series:"3",reps:"10-12",descanso:"60s",video:"" },
+  { id:"t3",grupo:"Tríceps",nome:"Extensão Overhead com Halter",principais:["Tríceps (cabeça longa)"],secundarios:["Tríceps (lateral e medial)"],
+    desc:"Alonga e trabalha a cabeça longa na amplitude máxima.",
+    passos:["Em pé ou sentado com um halter","Eleve acima da cabeça","Dobre os cotovelos abaixando atrás da cabeça","Estenda completamente para cima","Cotovelhos paralelos à cabeça"],
+    erros:["Abrir os cotovelos","Carga muito pesada","Não completar a extensão"],
+    cuidados:["Cotovelhos sempre paralelos","Ótimo para cabeça longa"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"t4",grupo:"Tríceps",nome:"Mergulho no Banco",principais:["Tríceps braquial"],secundarios:["Deltóide anterior","Peitoral"],
+    desc:"Peso corporal eficiente para tríceps.",
+    passos:["Mãos no banco atrás do corpo","Pernas estendidas ou dobradas","Desça até ~90° nos cotovelos","Empurre para cima estendendo os braços","Cotovelos apontando para trás"],
+    erros:["Cotovelos abertos para os lados","Descer muito baixo","Não completar a extensão"],
+    cuidados:["Para mais dificuldade, coloque peso nas coxas","Ombros longe das orelhas"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  // ABDÔMEN
+  { id:"ab1",grupo:"Abdômen",nome:"Prancha Abdominal",principais:["Reto abdominal","Transverso"],secundarios:["Oblíquos","Glúteos"],
+    desc:"Isométrico fundamental para estabilidade do core.",
+    passos:["Apoie nos antebraços e pontas dos pés","Corpo em linha reta","Contraia abdômen e glúteos","Olhar para o chão","Respire de forma controlada"],
+    erros:["Quadril muito alto ou baixo","Prender a respiração","Pescoço em tensão"],
+    cuidados:["Comece com 20-30 segundos","Progrida até 60s+","Corpo como uma tábua"],
+    series:"3-4",reps:"30-60s",descanso:"30s",video:"" },
+  { id:"ab2",grupo:"Abdômen",nome:"Crunch Abdominal",principais:["Reto abdominal superior"],secundarios:["Oblíquos"],
+    desc:"Clássico para a porção superior do abdômen.",
+    passos:["Deitado com joelhos dobrados","Mãos atrás da cabeça sem puxar","Eleve os ombros contraindo o abdômen","Segure 1-2 segundos no topo","Desça sem largar a tensão"],
+    erros:["Puxar o pescoço","Subir o tronco inteiro","Não contrair o abdômen"],
+    cuidados:["Movimento pequeno, foco na contração","Pressione a lombar no chão"],
+    series:"3-4",reps:"15-20",descanso:"45s",video:"" },
+  { id:"ab3",grupo:"Abdômen",nome:"Russian Twist",principais:["Oblíquos"],secundarios:["Reto abdominal"],
+    desc:"Rotacional que trabalha oblíquos intensamente.",
+    passos:["Tronco inclinado 45°, joelhos dobrados","Segure peso ou mãos juntas","Gire o tronco de lado a lado","Toque próximo ao quadril em cada lado","Abdômen contraído"],
+    erros:["Rotar apenas com os braços","Não inclinar o tronco","Fazer muito rápido"],
+    cuidados:["Para avançado, erga os pés","Movimento parte do tronco"],
+    series:"3",reps:"20 (10 cada)",descanso:"45s",video:"" },
+  { id:"ab4",grupo:"Abdômen",nome:"Elevação de Pernas",principais:["Reto inferior","Flexores do quadril"],secundarios:["Oblíquos"],
+    desc:"Trabalha a porção inferior do abdômen.",
+    passos:["Deitado com mãos sob o cóccix","Eleve as pernas estendidas até 90°","Desça lentamente sem encostar no chão","Lombar pressionada no chão","Avançado: banco declinado"],
+    erros:["Lombar arquear","Usar o impulso","Dobrar demais os joelhos"],
+    cuidados:["Lombar sempre no chão","Comece com joelhos dobrados"],
+    series:"3",reps:"12-15",descanso:"45s",video:"" },
+  { id:"ab5",grupo:"Abdômen",nome:"Abdominal Bicicleta",principais:["Oblíquos","Reto abdominal"],secundarios:["Flexores do quadril"],
+    desc:"Dinâmico que combina rotação e flexão.",
+    passos:["Deitado, mãos atrás da cabeça","Joelhos dobrados a 90°","Cotovelo direito ao joelho esquerdo e vice-versa","Movimento de pedalada","Lombar pressionada no chão"],
+    erros:["Puxar o pescoço","Fazer muito rápido","Não rotar o tronco"],
+    cuidados:["Movimento lento e controlado","Foco na rotação"],
+    series:"3",reps:"20 (10 cada)",descanso:"45s",video:"" },
+  // QUADRÍCEPS
+  { id:"q1",grupo:"Quadríceps",nome:"Agachamento Livre com Barra",principais:["Quadríceps","Glúteos"],secundarios:["Isquiotibiais","Core"],
+    desc:"Rainha dos exercícios para o trem inferior.",
+    passos:["Barra no trapézio, pés na largura dos ombros","Pontas dos pés levemente abertas","Desça com tronco ereto e joelhos alinhados","Até a dobra do quadril ficar abaixo dos joelhos","Suba empurrando com os calcanhares"],
+    erros:["Joelhos colapsando","Calcanhar saindo do chão","Lombar arredondada"],
+    cuidados:["Domine sem carga primeiro","Use cinto para cargas pesadas","Mobilidade é fundamental"],
+    series:"4-5",reps:"8-12",descanso:"120s",video:"" },
+  { id:"q2",grupo:"Quadríceps",nome:"Leg Press 45°",principais:["Quadríceps","Glúteos"],secundarios:["Isquiotibiais"],
+    desc:"Grande carga para o trem inferior em posição segura.",
+    passos:["Pés na plataforma, afastamento médio","Solte as travas e dobre os joelhos até 90°","Empurre até quase estender","Não trave os joelhos completamente","Lombar sempre apoiada"],
+    erros:["Descer demais curvando o cóccix","Joelhos colapsando","Travar os joelhos"],
+    cuidados:["Não trave os joelhos","Pés na largura do quadril para foco em quádriceps"],
+    series:"4",reps:"10-15",descanso:"90s",video:"" },
+  { id:"q3",grupo:"Quadríceps",nome:"Cadeira Extensora",principais:["Quadríceps (isolamento)"],secundarios:["Reto femoral"],
+    desc:"Único isolamento verdadeiro para quadríceps.",
+    passos:["Ajuste encosto e rolo na parte inferior da perna","Estenda os joelhos até quase 180°","Contraia no topo","Desça lentamente por 3-4 segundos","Não deixe o peso cair"],
+    erros:["Usar impulso para subir","Descer muito rápido"],
+    cuidados:["Joelhos com problemas: cuidado","Excêntrica lenta para mais ganho"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  { id:"q4",grupo:"Quadríceps",nome:"Avanço (Lunge) com Halteres",principais:["Quadríceps","Glúteos"],secundarios:["Isquiotibiais","Core"],
+    desc:"Funcional unilateral para força e equilíbrio.",
+    passos:["Em pé com halteres","Dê um passo largo para frente","Desça até o joelho traseiro quase tocar o chão","Joelho da frente não ultrapassa os dedos","Suba e alterne"],
+    erros:["Joelho da frente ultrapassando os pés","Tronco muito inclinado","Joelhos colapsando"],
+    cuidados:["Tronco ereto","Olhar à frente","Ótimo para desequilíbrios"],
+    series:"3-4",reps:"10-12 cada",descanso:"60s",video:"" },
+  // POSTERIOR DE COXA
+  { id:"pc1",grupo:"Posterior de Coxa",nome:"Mesa Flexora",principais:["Isquiotibiais"],secundarios:["Gastrocnêmio"],
+    desc:"Principal isolamento para isquiotibiais.",
+    passos:["Deite de bruços com rolo acima dos calcanhares","Dobre os joelhos trazendo os pés ao glúteo","Contraia no topo","Desça lentamente excêntrico","Não levante o quadril"],
+    erros:["Levantar o quadril","Usar impulso","Descer rápido"],
+    cuidados:["Excêntrica lenta é fundamental","Rolo no tendão calcâneo"],
+    series:"3-4",reps:"12-15",descanso:"60s",video:"" },
+  { id:"pc2",grupo:"Posterior de Coxa",nome:"Stiff com Halteres",principais:["Isquiotibiais","Glúteo maior"],secundarios:["Eretores"],
+    desc:"Alonga e fortalece isquiotibiais em grande amplitude.",
+    passos:["Em pé com halteres na frente","Incline o tronco empurrando o quadril para trás","Pernas semi-estendidas","Desça sentindo o alongamento","Suba estendendo o quadril"],
+    erros:["Arredondar a lombar","Dobrar demais os joelhos","Não empurrar o quadril para trás"],
+    cuidados:["Coluna neutra obrigatória","Sinta o alongamento nos isquiotibiais"],
+    series:"3-4",reps:"10-12",descanso:"75s",video:"" },
+  { id:"pc3",grupo:"Posterior de Coxa",nome:"Cadeira Flexora",principais:["Isquiotibiais"],secundarios:["Gastrocnêmio"],
+    desc:"Versão sentada para isquiotibiais.",
+    passos:["Rolo na parte de trás do tornozelo","Dobre os joelhos trazendo os pés para baixo","Contraia no topo","Desça controladamente","Costas no encosto"],
+    erros:["Levantar o quadril","Fazer muito rápido"],
+    cuidados:["Complementar à mesa flexora","Ótima para pós-reabilitação"],
+    series:"3",reps:"12-15",descanso:"60s",video:"" },
+  { id:"pc4",grupo:"Posterior de Coxa",nome:"RDL (Romanian Deadlift)",principais:["Isquiotibiais","Glúteos"],secundarios:["Eretores","Adutores"],
+    desc:"Variação do terra com ênfase nos isquiotibiais e glúteos.",
+    passos:["Em pé com barra ou halteres","Joelhos ligeiramente flexionados","Incline o tronco com coluna neutra","Desça até a altura das canelas","Suba contraindo os isquiotibiais"],
+    erros:["Arredondar a lombar","Dobrar demais os joelhos","Não manter coluna neutra"],
+    cuidados:["Diferença do stiff: mais flexão de joelho","Amplitude controlada"],
+    series:"3-4",reps:"10-12",descanso:"75s",video:"" },
+  // GLÚTEOS
+  { id:"g1",grupo:"Glúteos",nome:"Hip Thrust com Barra",principais:["Glúteo maior"],secundarios:["Isquiotibiais","Core"],
+    desc:"Exercício mais eficiente para o glúteo máximo.",
+    passos:["Escápulas apoiadas em banco resistente","Barra sobre os quadris com proteção","Pés afastados, dobrados a 90°","Eleve o quadril com os calcanhares","Contraia fortemente no topo por 2 segundos"],
+    erros:["Quadril não chega ao paralelo","Não contrair no topo","Hiperextender a lombar"],
+    cuidados:["Banco deve ser estável","Use proteção para a barra","Foco na contração glútea"],
+    series:"4",reps:"10-15",descanso:"75s",video:"" },
+  { id:"g2",grupo:"Glúteos",nome:"Agachamento Sumô",principais:["Glúteos","Adutores","Quadríceps"],secundarios:["Isquiotibiais"],
+    desc:"Base larga aumenta recrutamento de glúteos e adutores.",
+    passos:["Pés bem afastados, pontas abertas 45-60°","Desça com tronco ereto","Joelhos acompanham as pontas dos pés","Suba empurrando joelhos para fora","Contraia os glúteos ao subir"],
+    erros:["Joelhos colapsando","Tronco muito inclinado"],
+    cuidados:["Aquecimento de quadril importante","Ótimo para foco em glúteos"],
+    series:"3-4",reps:"12-15",descanso:"75s",video:"" },
+  { id:"g3",grupo:"Glúteos",nome:"Elevação Pélvica",principais:["Glúteo maior","Isquiotibiais"],secundarios:["Core"],
+    desc:"Versão de peso corporal do Hip Thrust.",
+    passos:["Deitado com joelhos dobrados e pés apoiados","Braços ao lado","Eleve o quadril contraindo os glúteos","Segure 2 segundos no topo","Desça lentamente"],
+    erros:["Não contrair os glúteos","Hiperextender a lombar"],
+    cuidados:["Progressão para Hip Thrust","Pode ser feito em casa"],
+    series:"3-4",reps:"15-20",descanso:"45s",video:"" },
+  { id:"g4",grupo:"Glúteos",nome:"Abdução de Quadril na Máquina",principais:["Glúteo médio e mínimo"],secundarios:["TFL","Piriforme"],
+    desc:"Para o glúteo médio e mínimo, responsáveis pela firmeza lateral.",
+    passos:["Sente-se com joelhos nas almofadas","Abra os joelhos contra a resistência","Contraia o glúteo médio no topo","Retorne controlando","Não use impulso"],
+    erros:["Impulso do tronco","Não completar a amplitude"],
+    cuidados:["Ótimo para finalização","Pode ser feito com elástico"],
+    series:"3-4",reps:"15-20",descanso:"45s",video:"" },
+  // PANTURRILHA
+  { id:"pan1",grupo:"Panturrilha",nome:"Elevação de Calcanhares em Pé",principais:["Gastrocnêmio"],secundarios:["Sóleo"],
+    desc:"Principal exercício para a cabeça maior da panturrilha.",
+    passos:["Pontas dos pés em um degrau","Desça os calcanhares abaixo do nível","Eleve na ponta dos pés o máximo","Segure 1-2 segundos no topo","Desça lentamente completando o alongamento"],
+    erros:["Não completar o alongamento na descida","Fazer muito rápido"],
+    cuidados:["Panturrilha precisa de amplitude e volume","Excêntrica lenta é fundamental"],
+    series:"4",reps:"15-20",descanso:"45s",video:"" },
+  { id:"pan2",grupo:"Panturrilha",nome:"Elevação de Calcanhares Sentado",principais:["Sóleo"],secundarios:["Gastrocnêmio"],
+    desc:"Isola o sóleo com o joelho dobrado.",
+    passos:["Sentado com resistência sobre os joelhos","Pontas dos pés apoiadas","Desça os calcanhares completamente","Eleve ao máximo","Segure 1-2 segundos"],
+    erros:["Não completar o alongamento","Carga excessiva sem amplitude"],
+    cuidados:["Sóleo diferente do gastrocnêmio","Ambos os exercícios são complementares"],
+    series:"3-4",reps:"15-20",descanso:"45s",video:"" },
+  // CARDIO
+  { id:"car1",grupo:"Cardio",nome:"HIIT na Esteira",principais:["Sistema cardiovascular","MMII"],secundarios:["Core"],
+    desc:"Intervalado de alta intensidade para máxima queima de gordura.",
+    passos:["Aquecimento: 5 min moderado","Sprint: 30-40s na velocidade máxima sustentável","Recuperação: 90s em caminhada","Repita 8-12 ciclos","Desaquecimento: 5 min de caminhada"],
+    erros:["Pular o aquecimento","Velocidade muito alta","Não se hidratar"],
+    cuidados:["Máximo 3x por semana","Não no mesmo dia de pernas pesadas"],
+    series:"8-12 ciclos",reps:"30s sprint + 90s recuperação",descanso:"Ver descrição",video:"" },
+  { id:"car2",grupo:"Cardio",nome:"Corrida Leve (Steady State)",principais:["Sistema cardiovascular"],secundarios:["MMII"],
+    desc:"Cardio estável para oxidação de gordura e saúde cardiovascular.",
+    passos:["FC alvo: 60-70% da FC máxima","Ritmo de conversa","Duração: 30-50 minutos","Postura ereta, passada natural","Respiração rítmica"],
+    erros:["Intensidade muito baixa","Intensidade muito alta","Postura curvada"],
+    cuidados:["Calçado adequado","Hidratação constante"],
+    series:"1",reps:"30-50 minutos",descanso:"N/A",video:"" },
+  { id:"car3",grupo:"Cardio",nome:"Pular Corda",principais:["Sistema cardiovascular","Coordenação"],secundarios:["Panturrilha","Ombros"],
+    desc:"Alta eficiência cardiovascular com melhora de coordenação.",
+    passos:["Segure as alças na altura do quadril","Salte levemente com as duas pernas","Pulso faz o movimento circular","Pouso na ponta dos pés","Comece com 30s e aumente"],
+    erros:["Usar os braços demais","Saltar muito alto"],
+    cuidados:["Superfície amortecida","Ótimo para aquecimento"],
+    series:"4-6",reps:"30-60s",descanso:"30s",video:"" },
+  // ALONGAMENTOS
+  { id:"al1",grupo:"Alongamentos",nome:"Alongamento de Isquiotibiais",principais:["Isquiotibiais"],secundarios:["Lombar","Panturrilha"],
+    desc:"Fundamental para flexibilidade da cadeia posterior.",
+    passos:["Sente com pernas estendidas","Incline o tronco para frente com coluna reta","Segure os pés ou canelas","Mantenha 20-30 segundos","Aprofunde a cada expiração"],
+    erros:["Curvar a lombar","Puxar com força","Prender a respiração"],
+    cuidados:["Nunca force além do limite","Ideal após o treino"],
+    series:"2-3",reps:"20-30s cada",descanso:"N/A",video:"" },
+  { id:"al2",grupo:"Alongamentos",nome:"Alongamento de Quadríceps",principais:["Quadríceps"],secundarios:["Flexores do quadril"],
+    desc:"Essencial para saúde dos joelhos e flexibilidade anterior.",
+    passos:["Em pé, dobre um joelho trazendo o pé ao glúteo","Segure o tornozelo","Joelhos alinhados","Empurre levemente o quadril para frente","20-30 segundos cada lado"],
+    erros:["Separar os joelhos","Inclinar o tronco para frente"],
+    cuidados:["Apoio em parede se necessário","Realize após treino de pernas"],
+    series:"2-3",reps:"20-30s cada",descanso:"N/A",video:"" },
+  { id:"al3",grupo:"Alongamentos",nome:"Alongamento de Peitoral",principais:["Peitoral maior"],secundarios:["Deltóide anterior"],
+    desc:"Importante após treino de peito, melhora a postura.",
+    passos:["Entrelace as mãos atrás das costas","Eleve levemente os braços","Abra o peito e empurre ombros para trás","Cabeça neutra","20-30 segundos"],
+    erros:["Inclinar demais para frente","Tensão no pescoço"],
+    cuidados:["Também em uma porta","Realize diariamente para postura"],
+    series:"2-3",reps:"20-30s",descanso:"N/A",video:"" },
+  { id:"al4",grupo:"Alongamentos",nome:"Gato-Vaca (Coluna)",principais:["Eretores","Latíssimo"],secundarios:["Trapézio","Rombóides"],
+    desc:"Dinâmico para toda a coluna, alivia tensão.",
+    passos:["Em quatro apoios","Gato: arqueie as costas para cima, queixo no peito","Vaca: abaixe as costas, eleve a cabeça","Alterne lenta e ritmicamente","8-10 repetições"],
+    erros:["Fazer muito rápido","Não completar o arco"],
+    cuidados:["Ideal para aquecimento e finalização","Excelente para lombar"],
+    series:"2-3",reps:"10 ciclos",descanso:"N/A",video:"" },
+];
+
+// ─── BIBLIOTECA MODAL (para admin montar treino) ───────────────────────────────
+const BibliotecaModal = ({ onAdd, onClose }) => {
+  const [grupoFiltro, setGrupoFiltro] = useState("Todos");
+  const [busca, setBusca] = useState("");
+  const [exSel, setExSel] = useState(null);
+  const [editando, setEditando] = useState(null); // { series, reps, descanso, obs }
+
+  const grupos = ["Todos", ...Object.keys(GRUPOS_CORES)];
+  const filtrados = BIBLIOTECA.filter(ex => {
+    const matchGrupo = grupoFiltro === "Todos" || ex.grupo === grupoFiltro;
+    const matchBusca = !busca || ex.nome.toLowerCase().includes(busca.toLowerCase()) || ex.grupo.toLowerCase().includes(busca.toLowerCase()) || ex.principais.some(p => p.toLowerCase().includes(busca.toLowerCase()));
+    return matchGrupo && matchBusca;
+  });
+
+  if (editando && exSel) {
+    return (
+      <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
+            <span style={{ fontSize:15, fontWeight:800, color:T.text }}>Configurar exercício</span>
+            <button onClick={()=>setEditando(null)} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
+          </div>
+          <div style={{ padding:"16px 20px 40px" }}>
+            <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:16, padding:12, background:T.bg2, borderRadius:12 }}>
+              <AnatomySVG grupo={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow} size={60}/>
+              <div>
+                <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{exSel.nome}</p>
+                <YBadge text={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow}/>
+                <p style={{ margin:"4px 0 0", color:T.text3, fontSize:12 }}>{exSel.principais.join(", ")}</p>
+              </div>
+            </div>
+            <Inp label="SÉRIES" value={editando.series} onChange={v=>setEditando(p=>({...p,series:v}))}/>
+            <Inp label="REPETIÇÕES" value={editando.reps} onChange={v=>setEditando(p=>({...p,reps:v}))}/>
+            <Inp label="DESCANSO" value={editando.descanso} onChange={v=>setEditando(p=>({...p,descanso:v}))} placeholder="Ex: 60s, 90s"/>
+            <Textarea label="OBSERVAÇÕES (carga, foco, adaptações)" value={editando.obs} onChange={v=>setEditando(p=>({...p,obs:v}))} placeholder="Ex: carga 20kg, foco na excêntrica..." rows={2}/>
+            <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
+            <div style={{ display:"flex", gap:10, marginTop:16 }}>
+              <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+                <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
+              </Btn>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (exSel) {
+    const cor = GRUPOS_CORES[exSel.grupo] || T.yellow;
+    return (
+      <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
+            <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", cursor:"pointer", color:T.text3, display:"flex", alignItems:"center", gap:6, fontSize:14 }}><Ic n="back" size={16} color={T.text3}/>Biblioteca</button>
+            <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
+          </div>
+          <div style={{ padding:"16px 20px 40px" }}>
+            {/* Anatomy illustration */}
+            <div style={{ display:"flex", gap:14, marginBottom:16 }}>
+              <AnatomySVG grupo={exSel.grupo} color={cor} size={80}/>
+              <div style={{ flex:1 }}>
+                <YBadge text={exSel.grupo} color={cor}/>
+                <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
+                <p style={{ margin:0, color:T.text3, fontSize:12 }}>🎯 {exSel.principais.join(" · ")}</p>
+                {exSel.secundarios?.length > 0 && <p style={{ margin:"2px 0 0", color:T.text3, fontSize:11 }}>+ {exSel.secundarios.join(", ")}</p>}
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+              {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
+                <div key={i.l} style={{ background:T.card2, borderRadius:10, padding:"10px 8px", textAlign:"center", border:`1px solid ${cor}33` }}>
+                  <p style={{ margin:0, fontSize:15, fontWeight:900, color:cor }}>{i.v}</p>
+                  <p style={{ margin:"3px 0 0", fontSize:10, color:T.text3 }}>{i.l}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin:"0 0 10px", color:T.text2, fontSize:13, lineHeight:1.6 }}>{exSel.desc}</p>
+            <div style={{ background:T.bg2, borderRadius:12, padding:12, marginBottom:12 }}>
+              <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.text }}>📋 Execução</p>
+              {exSel.passos.map((p,i)=>(
+                <div key={i} style={{ display:"flex", gap:8, marginBottom:6 }}>
+                  <span style={{ width:20, height:20, borderRadius:50, background:cor+"22", color:cor, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</span>
+                  <p style={{ margin:0, color:T.text2, fontSize:12, lineHeight:1.5 }}>{p}</p>
+                </div>
+              ))}
+            </div>
+            {exSel.erros?.length > 0 && (
+              <div style={{ background:"#E31B1B11", borderRadius:10, padding:10, marginBottom:10, border:`1px solid ${T.red}22` }}>
+                <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:T.red }}>❌ Erros comuns</p>
+                {exSel.erros.map((e,i)=><p key={i} style={{ margin:"0 0 3px", color:T.text3, fontSize:12 }}>• {e}</p>)}
+              </div>
+            )}
+            {exSel.cuidados?.length > 0 && (
+              <div style={{ background:T.yellowDim, borderRadius:10, padding:10, marginBottom:14, border:`1px solid ${T.yellow}22` }}>
+                <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:T.yellow }}>⚠️ Cuidados de postura</p>
+                {exSel.cuidados.map((c,i)=><p key={i} style={{ margin:"0 0 3px", color:T.text2, fontSize:12 }}>• {c}</p>)}
+              </div>
+            )}
+            <Btn onClick={()=>setEditando({ series:exSel.series, reps:exSel.reps, descanso:exSel.descanso, obs:"", video:"" })} style={{ width:"100%", color:T.bg }}>
+              <Ic n="plus" size={16} color={T.bg}/>Adicionar ao treino do aluno
+            </Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"94vh", overflowY:"auto" }}>
+        <div style={{ padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <span style={{ fontSize:16, fontWeight:800, color:T.text }}>📚 Biblioteca de Exercícios</span>
+            <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
+          </div>
+          {/* Search */}
+          <div style={{ position:"relative", marginBottom:10 }}>
+            <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={15} color={T.text3}/></div>
+            <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar exercício ou músculo..." style={{ width:"100%", background:T.bg2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:10, padding:"10px 12px 10px 38px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+          </div>
+          {/* Group filter */}
+          <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4 }}>
+            {grupos.map(g=>(
+              <button key={g} onClick={()=>setGrupoFiltro(g)} style={{ flexShrink:0, background:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow)+"22":"transparent", border:`1px solid ${grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.border}`, borderRadius:20, padding:"5px 12px", color:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.text3, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                {g==="Todos"?"Todos":GRUPOS_EMOJI[g]+" "+g}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding:"12px 16px 40px" }}>
+          <p style={{ color:T.text3, fontSize:12, marginBottom:12 }}>{filtrados.length} exercícios encontrados</p>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            {filtrados.map(ex=>{
+              const cor = GRUPOS_CORES[ex.grupo] || T.yellow;
+              return (
+                <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
+                  <div style={{ position:"relative" }}>
+                    <AnatomySVG grupo={ex.grupo} color={cor} size="card"/>
+                    <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
+                  </div>
+                  <div style={{ padding:"10px 10px 12px" }}>
+                    <p style={{ margin:"0 0 3px", fontSize:13, fontWeight:800, color:T.text, lineHeight:1.3 }}>{ex.nome}</p>
+                    <p style={{ margin:"0 0 8px", color:T.text3, fontSize:11 }}>{ex.principais[0]}</p>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <span style={{ background:cor+"22", color:cor, borderRadius:6, padding:"3px 7px", fontSize:10, fontWeight:700 }}>{ex.series}s</span>
+                      <span style={{ background:T.bg, color:T.text3, borderRadius:6, padding:"3px 7px", fontSize:10 }}>{ex.reps}r</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const REFEICOES_DEFAULT = ["Café da manhã","Lanche da manhã","Almoço","Lanche da tarde","Jantar","Ceia"];
 const initAlunos = [
@@ -219,6 +754,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
   const [saved,setSaved]=useState(false);
   // Treino state
   const [editEx,setEditEx]=useState(null);
+  const [showBiblioteca,setShowBiblioteca]=useState(false);
   const [newFicha,setNewFicha]=useState("");
   const [showAddFicha,setShowAddFicha]=useState(false);
   // Cardapio state
@@ -336,6 +872,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
         {/* ── ABA TREINOS ── */}
         {tab==="treinos" && (
           <div>
+            {showBiblioteca && <BibliotecaModal onAdd={(ex)=>{ saveEx(ex); setShowBiblioteca(false); }} onClose={()=>setShowBiblioteca(false)}/>}
             {/* Fichas */}
             <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:16 }}>
               {Object.keys(treinos).map(f=>(
@@ -357,7 +894,10 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
 
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{treinoAtivo} <span style={{ color:T.text3, fontWeight:400, fontSize:13 }}>({exList.length} exercícios)</span></span>
-              <Btn small onClick={()=>setEditEx({id:0,nome:"",series:"3",reps:"12",descanso:"60s",obs:"",img:"",video:"",musculo:""})}><Ic n="plus" size={13} color={T.bg}/>Adicionar</Btn>
+              <div style={{ display:"flex", gap:8 }}>
+                <Btn small onClick={()=>setShowBiblioteca(true)} style={{ color:T.bg }}><Ic n="search" size={13} color={T.bg}/>Biblioteca</Btn>
+                <Btn small onClick={()=>setEditEx({id:0,nome:"",series:"3",reps:"12",descanso:"60s",obs:"",img:"",video:"",musculo:""})} outline><Ic n="plus" size={13} color={T.yellow}/>Manual</Btn>
+              </div>
             </div>
 
             {exList.length===0 ? (
@@ -522,6 +1062,195 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
   );
 };
 
+// ─── BIBLIOTECA ADMIN (browse + edit exercises) ───────────────────────────────
+const BibliotecaAdmin = () => {
+  const [customExs, setCustomExs] = useState([]);
+  const [grupoFiltro, setGrupoFiltro] = useState("Todos");
+  const [busca, setBusca] = useState("");
+  const [exSel, setExSel] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const todos = [...BIBLIOTECA, ...customExs];
+  const grupos = ["Todos", ...Object.keys(GRUPOS_CORES)];
+  const filtrados = todos.filter(ex => {
+    const matchG = grupoFiltro==="Todos" || ex.grupo===grupoFiltro;
+    const matchB = !busca || ex.nome.toLowerCase().includes(busca.toLowerCase()) || ex.grupo.toLowerCase().includes(busca.toLowerCase());
+    return matchG && matchB;
+  });
+
+  const saveCustom = (ex) => {
+    if(ex.id && customExs.find(e=>e.id===ex.id)) setCustomExs(p=>p.map(e=>e.id===ex.id?ex:e));
+    else setCustomExs(p=>[...p,{...ex,id:"custom_"+Date.now()}]);
+    setShowAdd(false); setExSel(null);
+  };
+
+  if(showAdd || (exSel && customExs.find(e=>e.id===exSel?.id))) {
+    const base = showAdd ? {nome:"",grupo:"Peito",principais:[],secundarios:[],desc:"",passos:[""],erros:[""],cuidados:[""],series:"3",reps:"12",descanso:"60s",video:""} : exSel;
+    return <ExercicioEditor ex={base} onSave={saveCustom} onBack={()=>{setShowAdd(false);setExSel(null);}}/>;
+  }
+
+  if(exSel) {
+    const cor = GRUPOS_CORES[exSel.grupo]||T.yellow;
+    return (
+      <div>
+        <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/>Biblioteca</button>
+        <div style={{ display:"flex", gap:14, alignItems:"center", marginBottom:20, padding:14, background:T.bg2, borderRadius:14 }}>
+          <AnatomySVG grupo={exSel.grupo} color={cor} size={80}/>
+          <div style={{ flex:1 }}>
+            <YBadge text={exSel.grupo} color={cor}/>
+            <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
+            <p style={{ margin:0, color:T.text3, fontSize:12 }}>{exSel.principais?.join(" · ")}</p>
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+          {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
+            <div key={i.l} style={{ background:T.card2, borderRadius:10, padding:"10px 8px", textAlign:"center", border:`1px solid ${cor}33` }}>
+              <p style={{ margin:0, fontSize:15, fontWeight:900, color:cor }}>{i.v}</p>
+              <p style={{ margin:"3px 0 0", fontSize:10, color:T.text3 }}>{i.l}</p>
+            </div>
+          ))}
+        </div>
+        <Card style={{ padding:14, marginBottom:12 }}>
+          <p style={{ margin:"0 0 6px", fontSize:13, fontWeight:700, color:T.text }}>Descrição</p>
+          <p style={{ margin:0, color:T.text2, fontSize:13, lineHeight:1.6 }}>{exSel.desc}</p>
+        </Card>
+        <Card style={{ padding:14, marginBottom:12 }}>
+          <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:T.text }}>📋 Execução passo a passo</p>
+          {exSel.passos?.map((p,i)=>(
+            <div key={i} style={{ display:"flex", gap:8, marginBottom:6 }}>
+              <span style={{ width:20, height:20, borderRadius:50, background:cor+"22", color:cor, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</span>
+              <p style={{ margin:0, color:T.text2, fontSize:13 }}>{p}</p>
+            </div>
+          ))}
+        </Card>
+        {exSel.erros?.length>0 && <Card style={{ padding:14, marginBottom:12, borderLeft:`3px solid ${T.red}` }}>
+          <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.red }}>❌ Erros comuns</p>
+          {exSel.erros.map((e,i)=><p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {e}</p>)}
+        </Card>}
+        {exSel.cuidados?.length>0 && <Card style={{ padding:14, marginBottom:16, borderLeft:`3px solid ${T.yellow}` }}>
+          <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.yellow }}>⚠️ Cuidados de postura</p>
+          {exSel.cuidados.map((c,i)=><p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {c}</p>)}
+        </Card>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+        <div>
+          <p style={{ margin:0, fontSize:16, fontWeight:900, color:T.text }}>📚 Biblioteca de Exercícios</p>
+          <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{todos.length} exercícios pré-cadastrados</p>
+        </div>
+        <Btn small onClick={()=>setShowAdd(true)} style={{ color:T.bg }}><Ic n="plus" size={13} color={T.bg}/>Novo</Btn>
+      </div>
+      <div style={{ position:"relative", marginBottom:10 }}>
+        <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={15} color={T.text3}/></div>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar exercício ou músculo..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:10, padding:"10px 12px 10px 38px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+      </div>
+      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:8, marginBottom:14 }}>
+        {grupos.map(g=>(
+          <button key={g} onClick={()=>setGrupoFiltro(g)} style={{ flexShrink:0, background:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow)+"22":"transparent", border:`1px solid ${grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.border}`, borderRadius:20, padding:"5px 12px", color:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.text3, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+            {g==="Todos"?"Todos":GRUPOS_EMOJI[g]+" "+g}
+          </button>
+        ))}
+      </div>
+      <p style={{ color:T.text3, fontSize:12, marginBottom:10 }}>{filtrados.length} resultados</p>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+        {filtrados.map(ex=>{
+          const cor = GRUPOS_CORES[ex.grupo]||T.yellow;
+          const isCustom = customExs.find(e=>e.id===ex.id);
+          return (
+            <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${isCustom?T.yellow:T.border}`, cursor:"pointer" }}>
+              <div style={{ position:"relative" }}>
+                <AnatomySVG grupo={ex.grupo} color={cor} size="card"/>
+                <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={isCustom?"CUSTOM":ex.grupo} color={isCustom?T.yellow:cor}/></div>
+              </div>
+              <div style={{ padding:"10px 10px 12px" }}>
+                <p style={{ margin:"0 0 3px", fontSize:12, fontWeight:800, color:T.text, lineHeight:1.3 }}>{ex.nome}</p>
+                <p style={{ margin:"0 0 6px", color:T.text3, fontSize:11 }}>{ex.principais?.[0]}</p>
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                  <span style={{ background:cor+"22", color:cor, borderRadius:5, padding:"2px 6px", fontSize:10, fontWeight:700 }}>{ex.series}s</span>
+                  <span style={{ background:T.bg, color:T.text3, borderRadius:5, padding:"2px 6px", fontSize:10 }}>{ex.reps}r</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ExercicioEditor = ({ ex, onSave, onBack }) => {
+  const [f,setF]=useState({...ex, passos:ex.passos||[""], erros:ex.erros||[""], cuidados:ex.cuidados||[""], principais:(ex.principais||[]).join(", "), secundarios:(ex.secundarios||[]).join(", ")});
+  const imgRef=useRef();
+  const handleImg=(e)=>{ const file=e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=ev=>setF(p=>({...p,img:ev.target.result})); r.readAsDataURL(file); };
+  const listEdit=(field,idx,val)=>setF(p=>({...p,[field]:p[field].map((x,i)=>i===idx?val:x)}));
+  const listAdd=(field)=>setF(p=>({...p,[field]:[...p[field],""]}));
+  const listRemove=(field,idx)=>setF(p=>({...p,[field]:p[field].filter((_,i)=>i!==idx)}));
+  return (
+    <div>
+      <button onClick={onBack} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/>Voltar</button>
+      <p style={{ margin:"0 0 16px", fontSize:16, fontWeight:900, color:T.text }}>{ex.id?"Editar exercício":"Novo exercício"}</p>
+      <Inp label="NOME DO EXERCÍCIO *" value={f.nome} onChange={v=>setF(p=>({...p,nome:v}))}/>
+      <div style={{ marginBottom:12 }}>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>GRUPO MUSCULAR</label>
+        <select value={f.grupo} onChange={e=>setF(p=>({...p,grupo:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
+          {Object.keys(GRUPOS_CORES).map(g=><option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <Inp label="MÚSCULOS PRINCIPAIS (separados por vírgula)" value={f.principais} onChange={v=>setF(p=>({...p,principais:v}))} placeholder="Ex: Peitoral maior, Deltóide"/>
+      <Inp label="MÚSCULOS SECUNDÁRIOS" value={f.secundarios} onChange={v=>setF(p=>({...p,secundarios:v}))} placeholder="Ex: Tríceps, Bíceps"/>
+      <Textarea label="DESCRIÇÃO" value={f.desc||""} onChange={v=>setF(p=>({...p,desc:v}))} rows={2}/>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
+        <Inp label="SÉRIES" value={f.series} onChange={v=>setF(p=>({...p,series:v}))}/>
+        <Inp label="REPS" value={f.reps} onChange={v=>setF(p=>({...p,reps:v}))}/>
+        <Inp label="DESCANSO" value={f.descanso} onChange={v=>setF(p=>({...p,descanso:v}))}/>
+      </div>
+      {/* Passos */}
+      <div style={{ marginBottom:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8 }}>PASSO A PASSO</label>
+          <button onClick={()=>listAdd("passos")} style={{ background:T.yellowDim, border:"none", borderRadius:6, padding:"3px 10px", color:T.yellow, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
+        </div>
+        {f.passos.map((p,i)=>(
+          <div key={i} style={{ display:"flex", gap:6, marginBottom:6 }}>
+            <span style={{ width:20, height:20, background:T.yellowDim, borderRadius:50, color:T.yellow, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:12 }}>{i+1}</span>
+            <input value={p} onChange={e=>listEdit("passos",i,e.target.value)} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 10px", color:T.text, fontSize:13, outline:"none" }}/>
+            {f.passos.length>1 && <button onClick={()=>listRemove("passos",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={12} color={T.red}/></button>}
+          </div>
+        ))}
+      </div>
+      {/* Erros */}
+      <div style={{ marginBottom:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8 }}>ERROS COMUNS</label>
+          <button onClick={()=>listAdd("erros")} style={{ background:T.redDim, border:"none", borderRadius:6, padding:"3px 10px", color:T.red, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
+        </div>
+        {f.erros.map((e,i)=>(
+          <div key={i} style={{ display:"flex", gap:6, marginBottom:6 }}>
+            <input value={e} onChange={ev=>listEdit("erros",i,ev.target.value)} placeholder="Ex: Arredondar a lombar" style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px", color:T.text, fontSize:13, outline:"none" }}/>
+            {f.erros.length>1 && <button onClick={()=>listRemove("erros",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={12} color={T.red}/></button>}
+          </div>
+        ))}
+      </div>
+      {/* Imagem */}
+      <div style={{ marginBottom:12 }}>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>IMAGEM (opcional)</label>
+        {f.img && <img src={f.img} alt="" style={{ width:"100%", borderRadius:10, marginBottom:8, maxHeight:120, objectFit:"cover" }}/>}
+        <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
+        <button onClick={()=>imgRef.current.click()} style={{ background:T.card2, border:`1px dashed ${T.border}`, borderRadius:10, padding:"10px 16px", color:T.text3, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
+          <Ic n="upload" size={16} color={T.text3}/>{f.img?"Trocar imagem":"Upload de imagem"}
+        </button>
+      </div>
+      <Inp label="VÍDEO DEMONSTRATIVO (link)" value={f.video||""} onChange={v=>setF(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
+      <Btn onClick={()=>onSave({...f, principais:f.principais.split(",").map(s=>s.trim()).filter(Boolean), secundarios:f.secundarios.split(",").map(s=>s.trim()).filter(Boolean)})} style={{ width:"100%", color:T.bg, marginTop:8 }}>
+        💾 Salvar exercício
+      </Btn>
+    </div>
+  );
+};
+
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
   const [subTab,setSubTab]=useState("alunos");
@@ -553,7 +1282,7 @@ const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
     setShowAdd(false);
   };
 
-  const ADMIN_TABS=[{id:"alunos",l:"👥 Alunos"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const ADMIN_TABS=[{id:"alunos",l:"👥 Alunos"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -639,6 +1368,11 @@ const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── BIBLIOTECA ── */}
+        {subTab==="biblioteca" && (
+          <BibliotecaAdmin/>
         )}
 
         {/* ── DASHBOARD ── */}
