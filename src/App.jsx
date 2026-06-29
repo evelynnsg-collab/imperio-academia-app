@@ -854,4 +854,166 @@ const AlunoApp = ({ aluno }) => {
         </div>
         {REFEICOES_DEFAULT.map((ref,i)=>{
           const r=aluno.cardapio?.[ref]; const alims=r?.alimentos||[];
-          const kcal=alims.reduce((a
+          const kcal=alims.reduce((a,it)=>a+(parseFloat(it.kcal)||0),0);
+          if(!r && alims.length===0) return (
+            <div key={ref} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, padding:"13px 16px", marginBottom:8, display:"flex", alignItems:"center", gap:12, opacity:0.5 }}>
+              <span style={{ fontSize:22 }}>{["☀️","🍎","🍽️","🥝","🌙","⭐"][i]}</span>
+              <div><p style={{ margin:0, fontSize:14, fontWeight:700, color:T.text3 }}>{ref}</p><p style={{ margin:0, color:T.text3, fontSize:12 }}>Não cadastrado</p></div>
+            </div>
+          );
+          return (
+            <div key={ref} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.green}44`, marginBottom:10, overflow:"hidden" }}>
+              <div style={{ padding:"13px 16px", display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:22 }}>{["☀️","🍎","🍽️","🥝","🌙","⭐"][i]}</span>
+                <div style={{ flex:1 }}>
+                  <p style={{ margin:0, fontSize:14, fontWeight:700, color:T.text }}>{ref}</p>
+                  <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{r?.horario && `${r.horario} · `}{alims.length} alimentos{kcal>0?` · ${kcal} kcal`:""}</p>
+                </div>
+              </div>
+              {r?.img && <img src={r.img} alt={ref} style={{ width:"100%", maxHeight:120, objectFit:"cover" }}/>}
+              <div style={{ padding:"0 16px 14px" }}>
+                {alims.map(a=>(
+                  <div key={a.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${T.border}` }}>
+                    <span style={{ color:T.text2, fontSize:13 }}>{a.nome}</span>
+                    <div style={{ display:"flex", gap:10 }}>
+                      {a.qtd && <span style={{ color:T.text3, fontSize:12 }}>{a.qtd}</span>}
+                      {a.kcal && <span style={{ color:T.yellow, fontSize:12, fontWeight:700 }}>{a.kcal}kcal</span>}
+                    </div>
+                  </div>
+                ))}
+                {r?.obs && <p style={{ margin:"8px 0 0", color:T.text3, fontSize:12, fontStyle:"italic" }}>{r.obs}</p>}
+                {r?.video && <a href={r.video} target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:6, marginTop:8, color:T.green, fontSize:12, fontWeight:700, textDecoration:"none" }}><Ic n="play" size={14} color={T.green}/>Ver vídeo</a>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    // ── NUTRIÇÃO
+    if(tab==="nutricao") return (
+      <div>
+        <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, borderRadius:20, padding:18, border:`1px solid ${T.green}33`, marginBottom:18 }}>
+          <div style={{ display:"flex", gap:14, alignItems:"center", marginBottom:12 }}>
+            <div style={{ width:56, height:56, borderRadius:50, background:`linear-gradient(135deg,${T.green},#16A34A)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, boxShadow:`0 4px 18px ${T.green}44` }}>👩‍⚕️</div>
+            <div>
+              <p style={{ margin:"0 0 2px", fontSize:10, color:T.green, fontWeight:700, letterSpacing:1 }}>NUTRICIONISTA OFICIAL</p>
+              <h3 style={{ margin:"0 0 2px", fontSize:16, fontWeight:900, color:T.text }}>Dra. Ana Paula</h3>
+              <p style={{ margin:0, color:T.text3, fontSize:12 }}>CRN 1234 · Nutrição Esportiva</p>
+            </div>
+          </div>
+          <button style={{ width:"100%", background:`linear-gradient(135deg,${T.green},#16A34A)`, color:T.text, border:"none", borderRadius:12, padding:13, fontSize:14, fontWeight:800, cursor:"pointer" }}>📅 Agendar consulta</button>
+        </div>
+        <p style={{ color:T.text, fontSize:15, fontWeight:800, marginBottom:12 }}>Vídeos</p>
+        {NUTRI_VIDEOS.map(v=>(
+          <Card key={v.title} style={{ overflow:"hidden", marginBottom:10 }}>
+            <div style={{ height:90, background:`linear-gradient(135deg,#001A08,#0A1505)`, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+              <div style={{ width:40, height:40, background:`${T.green}22`, borderRadius:50, border:`2px solid ${T.green}55`, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n="play" size={18} color={T.green}/></div>
+              <div style={{ position:"absolute", bottom:8, right:8, background:"#000A", borderRadius:5, padding:"2px 7px" }}><span style={{ color:T.text, fontSize:11, fontWeight:700 }}>{v.duration}</span></div>
+            </div>
+            <div style={{ padding:"11px 13px" }}><p style={{ margin:0, fontSize:14, fontWeight:700, color:T.text }}>{v.title}</p><p style={{ margin:"3px 0 0", color:T.text3, fontSize:12 }}>{v.views} visualizações</p></div>
+          </Card>
+        ))}
+      </div>
+    );
+
+    // ── PERFIL
+    if(tab==="perfil") return (
+      <div>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ width:80, height:80, borderRadius:50, background:T.gold, margin:"0 auto 12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, boxShadow:`0 4px 24px ${T.yellow}44` }}>💪</div>
+          <h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{aluno.nome}</h2>
+          <p style={{ margin:"0 0 8px", color:T.text3, fontSize:13 }}>CPF: {aluno.cpf}</p>
+          <YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/>
+        </div>
+        {[["Plano",aluno.plano],["Status",aluno.status],["Objetivo",aluno.objetivo||"—"],["Membro desde",aluno.since],["Telefone",aluno.telefone||"—"],["E-mail",aluno.email||"—"]].map(([l,v])=>(
+          <Card key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"13px 16px" }}>
+            <span style={{ color:T.text3, fontSize:14 }}>{l}</span>
+            <span style={{ color:T.text, fontSize:14, fontWeight:600 }}>{v}</span>
+          </Card>
+        ))}
+      </div>
+    );
+
+    // ── PAGAMENTOS
+    return (
+      <div style={{ textAlign:"center", paddingTop:40 }}>
+        <p style={{ fontSize:40, marginBottom:12 }}>💳</p>
+        <p style={{ color:T.text, fontSize:16, fontWeight:700 }}>Pagamentos</p>
+        <p style={{ color:T.text3, fontSize:14, marginTop:8 }}>Entre em contato com a academia pelo WhatsApp.</p>
+        <a href="https://wa.me/5511999999999?text=Olá, preciso de ajuda com meu pagamento." target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:8, marginTop:20, background:"#25D36622", border:"1px solid #25D36644", borderRadius:12, padding:"12px 20px", color:"#25D366", textDecoration:"none", fontWeight:700, fontSize:14 }}>
+          <Ic n="whatsapp" size={18} color="#25D366"/> Falar no WhatsApp
+        </a>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ maxWidth:430, margin:"0 auto", background:T.bg, minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative" }}>
+      {menuOpen && <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"#000C", zIndex:40, maxWidth:430, margin:"0 auto" }}/>}
+      {/* Sidebar */}
+      <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto" }}>
+        <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"32px 20px 20px", borderBottom:`1px solid ${T.yellow}22` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>💪</div>
+            <div><p style={{ margin:0, fontSize:15, fontWeight:900, color:T.text }}>{aluno.nome}</p><YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/></div>
+          </div>
+        </div>
+        <div style={{ padding:"10px 0" }}>
+          {SIDE_MENU.map(it=>(
+            <div key={it.label} onClick={()=>{setTab(it.tab);setMenuOpen(false);}} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px", cursor:"pointer", borderLeft:tab===it.tab?`3px solid ${T.yellow}`:"3px solid transparent", background:tab===it.tab?`${T.yellow}08`:"transparent" }}>
+              <Ic n={it.icon} size={18} color={tab===it.tab?T.yellow:T.text3}/>
+              <span style={{ fontSize:14, color:tab===it.tab?T.text:T.text2, fontWeight:tab===it.tab?700:400 }}>{it.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Header */}
+      <div style={{ position:"sticky", top:0, zIndex:30, background:"#0A0A0AEE", backdropFilter:"blur(14px)", borderBottom:`1px solid ${T.border}`, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <button onClick={()=>setMenuOpen(!menuOpen)} style={{ background:"none", border:"none", cursor:"pointer", padding:0 }}><Ic n={menuOpen?"x":"menu"} size={22} color={T.text}/></button>
+        <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{TAB_TITLES[tab]||"IMPÉRIO"}</span>
+        <button style={{ background:"none", border:"none", cursor:"pointer", padding:0, position:"relative" }}><Ic n="bell" size={22} color={T.text}/><span style={{ position:"absolute", top:-2, right:-2, width:8, height:8, background:T.red, borderRadius:50, border:`2px solid ${T.bg}` }}/></button>
+      </div>
+      {/* Content */}
+      <div style={{ padding:"20px 16px 100px" }}>{renderTab()}</div>
+      {/* Bottom Nav */}
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"#0D0D00EE", borderTop:`1px solid ${T.yellow}22`, display:"flex", padding:"8px 0 16px", zIndex:30, backdropFilter:"blur(14px)" }}>
+        {BOT_NAV.map(it=>{
+          const active=tab===it.id;
+          return (
+            <button key={it.id} onClick={()=>setTab(it.id)} style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"4px 0" }}>
+              <div style={{ width:active?34:26, height:active?34:26, borderRadius:active?10:50, background:active?T.gold:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s", boxShadow:active?`0 4px 14px ${T.yellow}55`:"none" }}>
+                <Ic n={it.icon} size={16} color={active?T.bg:T.text3}/>
+              </div>
+              <span style={{ fontSize:10, color:active?T.yellow:T.text3, fontWeight:active?800:400 }}>{it.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* WhatsApp FAB */}
+      <a href="https://wa.me/5511999999999?text=Olá, preciso de ajuda pelo app da academia." target="_blank" rel="noopener noreferrer" style={{ position:"fixed", bottom:90, right:"max(20px,calc(50vw - 195px))", width:52, height:52, borderRadius:50, background:"linear-gradient(135deg,#25D366,#128C7E)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 20px #25D36688", zIndex:35, textDecoration:"none" }}>
+        <Ic n="whatsapp" size={26} color={T.text}/>
+      </a>
+    </div>
+  );
+};
+
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [alunos,setAlunos]=useState(initAlunos);
+  const [auth,setAuth]=useState(null);
+
+  if(!auth) return <LoginScreen onLogin={(role,id)=>setAuth({role,id})} alunos={alunos}/>;
+
+  if(auth.role==="admin") return (
+    <AdminPanel
+      alunos={alunos}
+      setAlunos={setAlunos}
+      onLogout={()=>setAuth(null)}
+    />
+  );
+
+  const aluno=alunos.find(a=>a.id===auth.id);
+  if(!aluno) return <LoginScreen onLogin={(role,id)=>setAuth({role,id})} alunos={alunos}/>;
+  return <AlunoApp aluno={aluno}/>;
+}
