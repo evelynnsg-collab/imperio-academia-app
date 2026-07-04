@@ -1,4 +1,55 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+
+// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  collection, getDocs, onSnapshot, serverTimestamp, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAaNDr6O36T_VCCk1p4iK29npFA2o92JwM",
+  authDomain: "imperio-academia.firebaseapp.com",
+  projectId: "imperio-academia",
+  storageBucket: "imperio-academia.firebasestorage.app",
+  messagingSenderId: "583980259345",
+  appId: "1:583980259345:web:9425a8afb1325a66b779b0"
+};
+
+const fbApp  = initializeApp(firebaseConfig);
+const fbAuth = getAuth(fbApp);
+const db     = getFirestore(fbApp);
+
+// ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
+// Salva aluno no Firestore
+async function salvarAluno(aluno) {
+  await setDoc(doc(db, "alunos", aluno.id), aluno);
+}
+// Busca todos os alunos
+async function buscarAlunos() {
+  const snap = await getDocs(collection(db, "alunos"));
+  return snap.docs.map(d => d.data());
+}
+// Deleta aluno
+async function deletarAluno(id) {
+  await deleteDoc(doc(db, "alunos", id));
+  // Deleta auth user via Admin SDK não é possível no client —
+  // deixamos o registro de auth, mas removemos os dados
+}
+// Cria conta de aluno no Firebase Auth (email = cpf@imperio.app, senha = cpf)
+async function criarContaAluno(cpf, senha) {
+  const email = `${cpf}@imperio.app`;
+  try {
+    await createUserWithEmailAndPassword(fbAuth, email, senha || cpf);
+  } catch(e) {
+    if (e.code !== "auth/email-already-in-use") throw e;
+  }
+}
+
 
 // ─── IMAGENS REAIS DE EXERCÍCIOS (Free Exercise DB — domínio público) ─────────
 const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
@@ -1102,29 +1153,51 @@ const initAlunos = [
 ];
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-const LoginScreen = ({ onLogin, alunos }) => {
-  const [login,setLogin]=useState(""); const [senha,setSenha]=useState(""); const [err,setErr]=useState("");
-  const handle = () => {
-    if(login==="admin" && senha==="admin@123"){ setErr(""); onLogin("admin",null); return; }
-    const aluno = alunos.find(a => a.cpf===login && a.senha===senha);
-    if(aluno){ setErr(""); onLogin("aluno",aluno.id); return; }
-    setErr("Login ou senha incorretos.");
+const LoginScreen = ({ onLogin }) => {
+  const [login,setLogin]=useState("");
+  const [senha,setSenha]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  const handle = async () => {
+    if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
+    setLoading(true); setErr("");
+    try {
+      if(login.trim()==="admin"){
+        await signInWithEmailAndPassword(fbAuth,"admin@imperio.app",senha);
+      } else {
+        const cpf = login.replace(/\D/g,"");
+        await signInWithEmailAndPassword(fbAuth,`${cpf}@imperio.app`,senha);
+      }
+    } catch(e) {
+      const msgs = {
+        "auth/invalid-credential":"CPF ou senha incorretos.",
+        "auth/user-not-found":"Aluno não cadastrado.",
+        "auth/wrong-password":"Senha incorreta.",
+        "auth/too-many-requests":"Muitas tentativas. Aguarde alguns minutos.",
+      };
+      setErr(msgs[e.code]||"Erro ao entrar. Verifique os dados.");
+    }
+    setLoading(false);
   };
+
   return (
-    <div style={{ minHeight:"100vh", background:`linear-gradient(160deg,#0A0A0A 0%,#1A1500 100%)`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <div style={{ width:"100%", maxWidth:380 }}>
-        <div style={{ textAlign:"center", marginBottom:40 }}>
-          <div style={{ width:80, height:80, borderRadius:24, background:T.gold, margin:"0 auto 16px", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 8px 40px ${T.yellow}55`, fontSize:36 }}>💪</div>
-          <h1 style={{ fontSize:32, fontWeight:900, color:T.text, margin:0, letterSpacing:-1 }}>IM<span style={{ color:T.yellow }}>PÉRIO</span></h1>
-          <p style={{ color:T.text3, fontSize:13, margin:"6px 0 0" }}>Academia — Plataforma Oficial</p>
+    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,#0A0A0A,#1A1500)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{width:"100%",maxWidth:380}}>
+        <div style={{textAlign:"center",marginBottom:40}}>
+          <div style={{width:80,height:80,borderRadius:24,background:T.gold,margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 8px 40px ${T.yellow}55`,fontSize:36}}>💪</div>
+          <h1 style={{fontSize:32,fontWeight:900,color:T.text,margin:0,letterSpacing:-1}}>IM<span style={{color:T.yellow}}>PÉRIO</span></h1>
+          <p style={{color:T.text3,fontSize:13,margin:"6px 0 0"}}>Academia — Plataforma Oficial</p>
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          <Inp label="CPF / LOGIN" value={login} onChange={v=>{setLogin(v);setErr("");}} placeholder="Digite seu CPF ou login"/>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <Inp label="CPF / LOGIN ADMIN" value={login} onChange={v=>{setLogin(v);setErr("");}} placeholder="Digite seu CPF ou 'admin'"/>
           <Inp label="SENHA" type="password" value={senha} onChange={v=>{setSenha(v);setErr("");}} placeholder="••••••••"/>
-          {err && <div style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:10, padding:"10px 14px", color:"#FF6666", fontSize:13, display:"flex", gap:8, alignItems:"center" }}><Ic n="info" size={16} color={T.red}/>{err}</div>}
-          <button onClick={handle} style={{ background:T.gold, color:T.bg, border:"none", borderRadius:12, padding:16, fontSize:15, fontWeight:900, cursor:"pointer", letterSpacing:1, boxShadow:`0 4px 24px ${T.yellow}44`, marginTop:4 }}>ENTRAR</button>
+          {err&&<div style={{background:T.redDim,border:`1px solid ${T.red}44`,borderRadius:10,padding:"10px 14px",color:"#FF6666",fontSize:13,display:"flex",gap:8,alignItems:"center"}}><Ic n="info" size={16} color={T.red}/>{err}</div>}
+          <button onClick={handle} disabled={loading} style={{background:loading?"#333":T.gold,color:T.bg,border:"none",borderRadius:12,padding:16,fontSize:15,fontWeight:900,cursor:loading?"not-allowed":"pointer",boxShadow:`0 4px 24px ${T.yellow}44`,marginTop:4,opacity:loading?0.7:1}}>
+            {loading?"Entrando...":"ENTRAR"}
+          </button>
         </div>
-        <p style={{ textAlign:"center", color:T.text3, fontSize:12, marginTop:20 }}>Admin: admin / admin@123 · Aluno: CPF / CPF</p>
+        <p style={{textAlign:"center",color:T.text3,fontSize:12,marginTop:20}}>Admin: admin + sua senha · Aluno: CPF + senha CPF</p>
       </div>
     </div>
   );
@@ -1639,7 +1712,7 @@ const ExercicioEditor = ({ ex, onSave, onBack }) => {
 };
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
-const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
+const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout }) => {
   const [subTab,setSubTab]=useState("alunos");
   const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
@@ -1650,8 +1723,8 @@ const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
     <AlunoDetalhe
       aluno={alunoSel}
       onBack={()=>setAlunoSel(null)}
-      onSave={(updated)=>{ setAlunos(p=>p.map(a=>a.id===alunoSel.id?{...updated,id:alunoSel.id}:a)); setAlunoSel({...updated,id:alunoSel.id}); }}
-      onDelete={(id)=>{ setAlunos(p=>p.filter(a=>a.id!==id)); setAlunoSel(null); }}
+      onSave={async(updated)=>{ await onUpdateAluno({...updated,id:alunoSel.id}); setAlunoSel({...updated,id:alunoSel.id}); }}
+      onDelete={async(id)=>{ await onDeleteAluno(id); setAlunoSel(null); }}
     />
   );
 
@@ -1661,12 +1734,24 @@ const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
     (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
   );
 
-  const addAluno=()=>{
-    if(!newAluno.nome.trim()||!newAluno.cpf.trim()) return;
-    const id=newAluno.cpf;
-    setAlunos(p=>[...p,{...newAluno,id,senha:newAluno.senha||newAluno.cpf}]);
-    setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
-    setShowAdd(false);
+  const [addLoading,setAddLoading]=useState(false);
+  const [addErr,setAddErr]=useState("");
+
+  const addAluno= async ()=>{
+    if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
+    setAddLoading(true); setAddErr("");
+    try {
+      const alunoCompleto={...newAluno, id:newAluno.cpf, senha:newAluno.senha||newAluno.cpf,
+        treinos:{"Treino A":[]}, cardapio:{}, fotos:[], avaliacoes:[], chat:[], notificacoes:[], agenda:[],
+        since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"})
+      };
+      await onAddAluno(alunoCompleto);
+      setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic"});
+      setShowAdd(false);
+    } catch(e) {
+      setAddErr("Erro ao cadastrar: "+e.message);
+    }
+    setAddLoading(false);
   };
 
   const ADMIN_TABS=[{id:"alunos",l:"👥 Alunos"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
@@ -1691,9 +1776,10 @@ const AdminPanel = ({ alunos, setAlunos, onLogout }) => {
               </div>
             ))}
           </div>
+          {addErr&&<p style={{color:T.red,fontSize:13,margin:"4px 0"}}>{addErr}</p>}
           <div style={{ display:"flex", gap:10, marginTop:8 }}>
             <Btn onClick={()=>setShowAdd(false)} outline style={{ flex:1 }}>Cancelar</Btn>
-            <Btn onClick={addAluno} style={{ flex:2, color:T.bg }}>✓ Cadastrar aluno</Btn>
+            <Btn onClick={addAluno} style={{ flex:2, color:T.bg, opacity:addLoading?0.7:1 }}>{addLoading?"Cadastrando...":"✓ Cadastrar aluno"}</Btn>
           </div>
         </Modal>
       )}
@@ -1813,7 +1899,7 @@ const NUTRI_VIDEOS=[
   {title:"Proteínas: quanto você realmente precisa?",duration:"11:30",tag:"Nutrição",views:"3.7k"},
 ];
 
-const AlunoApp = ({ aluno }) => {
+const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
   const [tab,setTab]=useState("inicio");
   const [menuOpen,setMenuOpen]=useState(false);
   const [exSel,setExSel]=useState(null);
@@ -2279,21 +2365,140 @@ const AlunoApp = ({ aluno }) => {
 };
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
+
+// ─── ALUNO APP FIREBASE WRAPPER ───────────────────────────────────────────────
+// Carrega dados do aluno em tempo real do Firestore
+const AlunoAppFirebase = ({ alunoId, onLogout }) => {
+  const [aluno, setAluno] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    if (!alunoId) return;
+    const unsub = onSnapshot(doc(db, "alunos", alunoId), snap => {
+      if (snap.exists()) setAluno(snap.data());
+      setCarregando(false);
+    });
+    return () => unsub();
+  }, [alunoId]);
+
+  const onUpdateAluno = async (updated) => {
+    await salvarAluno(updated);
+    setAluno(updated);
+  };
+
+  if (carregando) return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <p style={{color:T.text3,fontSize:14}}>Carregando seu perfil...</p>
+    </div>
+  );
+
+  if (!aluno) return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <p style={{color:T.red,fontSize:14}}>Perfil não encontrado.</p>
+    </div>
+  );
+
+  return <AlunoApp aluno={aluno} onUpdateAluno={onUpdateAluno} onLogout={onLogout}/>;
+};
+
 export default function App() {
-  const [alunos,setAlunos]=useState(initAlunos);
-  const [auth,setAuth]=useState(null);
+  const [auth,setAuth]   = useState(null);   // null | {role,id,uid}
+  const [alunos,setAlunos] = useState([]);
+  const [carregando,setCarregando] = useState(true);
 
-  if(!auth) return <LoginScreen onLogin={(role,id)=>setAuth({role,id})} alunos={alunos}/>;
+  // ── Auth state listener ──────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onAuthStateChanged(fbAuth, async (user) => {
+      if (!user) { setAuth(null); setCarregando(false); return; }
 
-  if(auth.role==="admin") return (
+      // Admin fixo por email
+      if (user.email === "admin@imperio.app") {
+        setAuth({ role:"admin", uid:user.uid });
+        setCarregando(false);
+        return;
+      }
+
+      // Aluno: busca dados no Firestore pelo UID ou CPF
+      const cpf = user.email.replace("@imperio.app","");
+      const snap = await getDoc(doc(db,"alunos",cpf));
+      if (snap.exists()) {
+        setAuth({ role:"aluno", id:cpf, uid:user.uid });
+      } else {
+        await signOut(fbAuth);
+        setAuth(null);
+      }
+      setCarregando(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // ── Carrega alunos em tempo real quando admin logado ─────────────────────
+  useEffect(() => {
+    if (!auth || auth.role !== "admin") return;
+    const unsub = onSnapshot(collection(db,"alunos"), snap => {
+      setAlunos(snap.docs.map(d => d.data()));
+    });
+    return () => unsub();
+  }, [auth]);
+
+  // ── Atualiza aluno no Firestore e no state local ─────────────────────────
+  const updateAluno = useCallback(async (aluno) => {
+    await salvarAluno(aluno);
+    setAlunos(p => p.map(a => a.id === aluno.id ? aluno : a));
+  }, []);
+
+  // ── Adiciona aluno (cria auth + salva no Firestore) ──────────────────────
+  const addAluno = useCallback(async (novoAluno) => {
+    await criarContaAluno(novoAluno.cpf, novoAluno.senha || novoAluno.cpf);
+    await salvarAluno({ ...novoAluno, id: novoAluno.cpf });
+  }, []);
+
+  // ── Deleta aluno ──────────────────────────────────────────────────────────
+  const removerAluno = useCallback(async (id) => {
+    await deletarAluno(id);
+    setAlunos(p => p.filter(a => a.id !== id));
+  }, []);
+
+  // ── Login ─────────────────────────────────────────────────────────────────
+  const handleLogin = async (role, id) => {
+    // Login já gerenciado pelo onAuthStateChanged
+    // Esta função é chamada pela LoginScreen após signIn bem-sucedido
+  };
+
+  const handleLogout = async () => {
+    await signOut(fbAuth);
+    setAuth(null);
+  };
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+  if (carregando) return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+      <div style={{width:60,height:60,borderRadius:20,background:T.gold,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:`0 8px 32px ${T.yellow}44`}}>💪</div>
+      <p style={{color:T.text3,fontSize:14}}>Carregando IMPÉRIO...</p>
+      <div style={{width:40,height:3,background:T.card2,borderRadius:50,overflow:"hidden"}}>
+        <div style={{width:"60%",height:"100%",background:T.gold,borderRadius:50,animation:"slide 1s ease-in-out infinite"}}/>
+      </div>
+    </div>
+  );
+
+  if (!auth) return <LoginScreen onLogin={handleLogin} />;
+
+  if (auth.role === "admin") return (
     <AdminPanel
       alunos={alunos}
       setAlunos={setAlunos}
-      onLogout={()=>setAuth(null)}
+      onAddAluno={addAluno}
+      onUpdateAluno={updateAluno}
+      onDeleteAluno={removerAluno}
+      onLogout={handleLogout}
     />
   );
 
-  const aluno=alunos.find(a=>a.id===auth.id);
-  if(!aluno) return <LoginScreen onLogin={(role,id)=>setAuth({role,id})} alunos={alunos}/>;
-  return <AlunoApp aluno={aluno}/>;
+  // Aluno: busca dados em tempo real do Firestore
+  return (
+    <AlunoAppFirebase
+      alunoId={auth.id}
+      onLogout={handleLogout}
+    />
+  );
 }
