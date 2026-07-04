@@ -1,4 +1,299 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+
+// ─── PARSE DESCANSO ("60s","90s","2min","1:30") → segundos ───────────────────
+function parseDescanso(str=""){
+  const s=str.trim().toLowerCase();
+  if(/^\d+$/.test(s))return parseInt(s);
+  if(s.endsWith("s"))return parseInt(s);
+  if(s.includes("min"))return parseInt(s)*60;
+  if(s.includes(":")){const[m,sec]=s.split(":").map(Number);return m*60+(sec||0);}
+  return 60;
+}
+
+// ─── TIMER DE DESCANSO ────────────────────────────────────────────────────────
+const TimerDescanso = ({ segundos, onClose }) => {
+  const total=segundos;
+  const [restante,setRestante]=useState(total);
+  const [rodando,setRodando]=useState(true);
+  const intRef=useRef(null);
+  useEffect(()=>{
+    if(rodando&&restante>0){
+      intRef.current=setInterval(()=>setRestante(r=>{
+        if(r<=1){clearInterval(intRef.current);setRodando(false);return 0;}
+        return r-1;
+      }),1000);
+    } else { clearInterval(intRef.current); }
+    return ()=>clearInterval(intRef.current);
+  },[rodando]);
+  const pct=restante/total;
+  const circ=2*Math.PI*54;
+  const dash=circ*(1-pct);
+  const cor=restante>total*0.5?T.green:restante>total*0.25?T.yellow:T.red;
+  const mm=String(Math.floor(restante/60)).padStart(2,"0");
+  const ss=String(restante%60).padStart(2,"0");
+  return (
+    <div style={{position:"fixed",inset:0,background:"#000E",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{background:T.card,borderRadius:28,padding:"32px 28px 28px",width:"88%",maxWidth:320,textAlign:"center",border:`1px solid ${cor}44`,boxShadow:`0 0 60px ${cor}22`}}>
+        <p style={{margin:"0 0 4px",color:T.text3,fontSize:12,fontWeight:700,letterSpacing:1}}>⏱️ DESCANSO</p>
+        <p style={{margin:"0 0 22px",color:T.text,fontSize:14,fontWeight:600}}>{restante===0?"Hora de continuar! 💪":"Descanse e prepare-se"}</p>
+        <div style={{position:"relative",display:"inline-flex",marginBottom:22}}>
+          <svg width={120} height={120} viewBox="0 0 120 120">
+            <circle cx={60} cy={60} r={54} fill="none" stroke={T.card2} strokeWidth={8}/>
+            <circle cx={60} cy={60} r={54} fill="none" stroke={cor} strokeWidth={8} strokeLinecap="round"
+              strokeDasharray={circ} strokeDashoffset={dash} transform="rotate(-90 60 60)"
+              style={{transition:"stroke-dashoffset 0.9s linear,stroke 0.5s"}}/>
+          </svg>
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:28,fontWeight:900,color:cor,lineHeight:1}}>{mm}:{ss}</span>
+            <span style={{fontSize:10,color:T.text3,marginTop:2}}>{restante===0?"PRONTO!":"restantes"}</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={()=>setRodando(r=>!r)} style={{flex:1,background:T.card2,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 0",color:T.text,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {rodando?"⏸ Pausar":"▶ Continuar"}
+          </button>
+          <button onClick={onClose} style={{flex:1,background:restante===0?`linear-gradient(135deg,${T.green},#16A34A)`:T.gold,border:"none",borderRadius:12,padding:"12px 0",color:T.bg,fontSize:13,fontWeight:900,cursor:"pointer"}}>
+            {restante===0?"💪 Vamos!":"Pular ›"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── ANATOMIA EXERCÍCIO (estilo wireframe) ────────────────────────────────────
+const AnatomiaExercicio = ({ nome, cor="#F5C518" }) => {
+  const ills = {
+    "leg press":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="10" y="70" width="260" height="8" rx="4" fill="#2a2a2a"/><rect x="10" y="70" width="12" height="80" rx="4" fill="#333"/>
+        <rect x="230" y="30" width="12" height="120" rx="4" fill="#333"/><rect x="180" y="20" width="60" height="10" rx="4" fill="#2a2a2a"/>
+        <rect x="180" y="20" width="10" height="55" rx="4" fill="#2a2a2a"/><rect x="210" y="65" width="55" height="14" rx="6" fill="#444"/>
+        <circle cx="50" cy="148" r="8" fill="#333" stroke="#444" strokeWidth="2"/><circle cx="220" cy="148" r="8" fill="#333" stroke="#444" strokeWidth="2"/>
+        <rect x="20" y="90" width="70" height="18" rx="8" fill="#3a3a3a"/><rect x="16" y="78" width="18" height="30" rx="6" fill="#3a3a3a"/>
+        <ellipse cx="80" cy="98" rx="28" ry="16" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <circle cx="30" cy="84" r="13" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="43" y1="84" x2="55" y2="90" stroke="#888" strokeWidth="2" opacity="0.7"/>
+        <line x1="65" y1="95" x2="45" y2="115" stroke="#888" strokeWidth="2" opacity="0.5"/>
+        <path d="M95 95 Q130 80 175 68" fill="none" stroke={cor} strokeWidth="4" strokeLinecap="round"/>
+        <path d="M75 108 Q110 98 175 78" fill="none" stroke={cor} strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+        <ellipse cx="138" cy="83" rx="22" ry="9" fill={cor} opacity="0.25" transform="rotate(-25 138 83)"/>
+        <ellipse cx="138" cy="83" rx="14" ry="6" fill={cor} opacity="0.5" transform="rotate(-25 138 83)"/>
+        <ellipse cx="98" cy="100" rx="14" ry="10" fill={cor} opacity="0.3"/>
+      </svg>
+    ),
+    "supino":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="40" y="95" width="200" height="15" rx="7" fill="#3a3a3a"/>
+        <line x1="70" y1="110" x2="65" y2="140" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="210" y1="110" x2="215" y2="140" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="115" y1="95" x2="115" y2="55" stroke="#555" strokeWidth="5" strokeLinecap="round"/>
+        <line x1="165" y1="95" x2="165" y2="55" stroke="#555" strokeWidth="5" strokeLinecap="round"/>
+        <line x1="108" y1="55" x2="172" y2="55" stroke="#555" strokeWidth="4" strokeLinecap="round"/>
+        <line x1="20" y1="70" x2="260" y2="70" stroke="#888" strokeWidth="5" strokeLinecap="round"/>
+        <rect x="20" y="55" width="22" height="30" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <rect x="238" y="55" width="22" height="30" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <ellipse cx="140" cy="86" rx="70" ry="10" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.6"/>
+        <circle cx="210" cy="84" r="11" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="125" y1="85" x2="85" y2="68" stroke="#888" strokeWidth="2.5" opacity="0.7"/>
+        <line x1="85" y1="68" x2="50" y2="70" stroke="#888" strokeWidth="2.5" opacity="0.7"/>
+        <line x1="155" y1="85" x2="195" y2="68" stroke="#888" strokeWidth="2.5" opacity="0.7"/>
+        <line x1="195" y1="68" x2="230" y2="70" stroke="#888" strokeWidth="2.5" opacity="0.7"/>
+        <ellipse cx="125" cy="82" rx="20" ry="8" fill={cor} opacity="0.3"/>
+        <ellipse cx="155" cy="82" rx="20" ry="8" fill={cor} opacity="0.3"/>
+        <ellipse cx="125" cy="82" rx="12" ry="5" fill={cor} opacity="0.6"/>
+        <ellipse cx="155" cy="82" rx="12" ry="5" fill={cor} opacity="0.6"/>
+      </svg>
+    ),
+    "agachamento":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <line x1="60" y1="20" x2="60" y2="150" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="220" y1="20" x2="220" y2="150" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="60" y1="20" x2="220" y2="20" stroke="#444" strokeWidth="4"/>
+        <line x1="70" y1="60" x2="100" y2="72" stroke="#666" strokeWidth="5" strokeLinecap="round"/>
+        <line x1="210" y1="60" x2="180" y2="72" stroke="#666" strokeWidth="5" strokeLinecap="round"/>
+        <line x1="55" y1="72" x2="225" y2="72" stroke="#999" strokeWidth="5" strokeLinecap="round"/>
+        <rect x="56" y="60" width="16" height="24" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <rect x="208" y="60" width="16" height="24" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <circle cx="140" cy="45" r="13" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="140" y1="58" x2="140" y2="90" stroke="#888" strokeWidth="3" strokeLinecap="round" opacity="0.7"/>
+        <line x1="105" y1="72" x2="175" y2="72" stroke="#888" strokeWidth="3" strokeLinecap="round" opacity="0.7"/>
+        <path d="M140 90 Q110 110 100 140" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <path d="M140 90 Q170 110 180 140" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <line x1="100" y1="140" x2="95" y2="155" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="180" y1="140" x2="185" y2="155" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <ellipse cx="118" cy="112" rx="14" ry="18" fill={cor} opacity="0.3" transform="rotate(15 118 112)"/>
+        <ellipse cx="162" cy="112" rx="14" ry="18" fill={cor} opacity="0.3" transform="rotate(-15 162 112)"/>
+        <ellipse cx="118" cy="112" rx="8" ry="12" fill={cor} opacity="0.55" transform="rotate(15 118 112)"/>
+        <ellipse cx="162" cy="112" rx="8" ry="12" fill={cor} opacity="0.55" transform="rotate(-15 162 112)"/>
+        <ellipse cx="140" cy="95" rx="18" ry="10" fill={cor} opacity="0.2"/>
+      </svg>
+    ),
+    "puxada":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="10" y="5" width="260" height="8" rx="4" fill="#333"/>
+        <rect x="10" y="5" width="10" height="150" rx="3" fill="#2a2a2a"/>
+        <rect x="260" y="5" width="10" height="150" rx="3" fill="#2a2a2a"/>
+        <circle cx="140" cy="10" r="6" fill="#555"/>
+        <line x1="140" y1="16" x2="100" y2="55" stroke="#888" strokeWidth="2"/>
+        <line x1="140" y1="16" x2="180" y2="55" stroke="#888" strokeWidth="2"/>
+        <line x1="80" y1="55" x2="200" y2="55" stroke="#999" strokeWidth="5" strokeLinecap="round"/>
+        <rect x="95" y="118" width="90" height="14" rx="6" fill="#3a3a3a"/>
+        <rect x="120" y="132" width="14" height="22" rx="4" fill="#2a2a2a"/>
+        <rect x="146" y="132" width="14" height="22" rx="4" fill="#2a2a2a"/>
+        <rect x="92" y="114" width="96" height="10" rx="4" fill="#444"/>
+        <circle cx="140" cy="72" r="12" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="140" y1="84" x2="140" y2="118" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="100" y1="55" x2="120" y2="78" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="200" y1="55" x2="160" y2="78" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <ellipse cx="130" cy="96" rx="16" ry="20" fill={cor} opacity="0.25" transform="rotate(-5 130 96)"/>
+        <ellipse cx="150" cy="96" rx="16" ry="20" fill={cor} opacity="0.25" transform="rotate(5 150 96)"/>
+        <ellipse cx="130" cy="96" rx="9" ry="13" fill={cor} opacity="0.5" transform="rotate(-5 130 96)"/>
+        <ellipse cx="150" cy="96" rx="9" ry="13" fill={cor} opacity="0.5" transform="rotate(5 150 96)"/>
+        <ellipse cx="118" cy="67" rx="6" ry="9" fill={cor} opacity="0.35" transform="rotate(-30 118 67)"/>
+        <ellipse cx="162" cy="67" rx="6" ry="9" fill={cor} opacity="0.35" transform="rotate(30 162 67)"/>
+      </svg>
+    ),
+    "rosca":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <line x1="40" y1="95" x2="240" y2="95" stroke="#999" strokeWidth="5" strokeLinecap="round"/>
+        <rect x="40" y="82" width="20" height="26" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <rect x="220" y="82" width="20" height="26" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <circle cx="140" cy="22" r="13" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="140" y1="35" x2="140" y2="45" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="140" y1="45" x2="140" y2="115" stroke="#888" strokeWidth="4" opacity="0.6"/>
+        <line x1="100" y1="50" x2="180" y2="50" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <path d="M100 50 Q78 70 82 95" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <path d="M180 50 Q202 70 198 95" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <line x1="82" y1="95" x2="62" y2="95" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="198" y1="95" x2="218" y2="95" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="130" y1="115" x2="120" y2="155" stroke="#888" strokeWidth="3" opacity="0.5"/>
+        <line x1="150" y1="115" x2="160" y2="155" stroke="#888" strokeWidth="3" opacity="0.5"/>
+        <ellipse cx="85" cy="73" rx="9" ry="16" fill={cor} opacity="0.4" transform="rotate(-15 85 73)"/>
+        <ellipse cx="195" cy="73" rx="9" ry="16" fill={cor} opacity="0.4" transform="rotate(15 195 73)"/>
+        <ellipse cx="85" cy="73" rx="5" ry="10" fill={cor} opacity="0.7" transform="rotate(-15 85 73)"/>
+        <ellipse cx="195" cy="73" rx="5" ry="10" fill={cor} opacity="0.7" transform="rotate(15 195 73)"/>
+      </svg>
+    ),
+    "hip thrust":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="30" y="80" width="100" height="18" rx="8" fill="#3a3a3a"/>
+        <line x1="50" y1="98" x2="45" y2="130" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="110" y1="98" x2="115" y2="130" stroke="#444" strokeWidth="6" strokeLinecap="round"/>
+        <line x1="10" y1="135" x2="270" y2="135" stroke="#333" strokeWidth="2"/>
+        <line x1="60" y1="90" x2="220" y2="90" stroke="#999" strokeWidth="5" strokeLinecap="round"/>
+        <rect x="60" y="77" width="20" height="26" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <rect x="200" y="77" width="20" height="26" rx="4" fill="#333" stroke="#555" strokeWidth="1.5"/>
+        <rect x="126" y="84" width="28" height="12" rx="6" fill="#444"/>
+        <line x1="45" y1="80" x2="125" y2="80" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <circle cx="130" cy="72" r="12" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <ellipse cx="140" cy="72" rx="22" ry="14" fill={cor} opacity="0.35" transform="rotate(15 140 72)"/>
+        <ellipse cx="140" cy="72" rx="14" ry="9" fill={cor} opacity="0.65" transform="rotate(15 140 72)"/>
+        <path d="M155 68 Q175 90 175 125" fill="none" stroke="#888" strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+        <path d="M148 72 Q165 95 165 125" fill="none" stroke={cor} strokeWidth="3" strokeLinecap="round" opacity="0.5"/>
+        <line x1="175" y1="125" x2="195" y2="130" stroke="#888" strokeWidth="4" opacity="0.6"/>
+        <ellipse cx="167" cy="97" rx="9" ry="20" fill={cor} opacity="0.2" transform="rotate(10 167 97)"/>
+      </svg>
+    ),
+    "prancha":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <line x1="10" y1="130" x2="270" y2="130" stroke="#333" strokeWidth="2"/>
+        <rect x="30" y="124" width="220" height="8" rx="4" fill="#2a3a2a" opacity="0.8"/>
+        <line x1="55" y1="108" x2="230" y2="90" stroke="#666" strokeWidth="2" strokeDasharray="4,3" opacity="0.4"/>
+        <circle cx="230" cy="86" r="12" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="218" y1="89" x2="210" y2="92" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="210" y1="92" x2="95" y2="108" stroke="#888" strokeWidth="5" strokeLinecap="round" opacity="0.6"/>
+        <line x1="190" y1="96" x2="178" y2="122" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="155" y1="102" x2="143" y2="124" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="95" y1="108" x2="55" y2="112" stroke="#888" strokeWidth="4" opacity="0.6"/>
+        <line x1="55" y1="112" x2="42" y2="124" stroke="#888" strokeWidth="3" opacity="0.5"/>
+        <ellipse cx="160" cy="100" rx="35" ry="8" fill={cor} opacity="0.25" transform="rotate(-5 160 100)"/>
+        <ellipse cx="158" cy="100" rx="22" ry="5" fill={cor} opacity="0.5" transform="rotate(-5 158 100)"/>
+        <ellipse cx="110" cy="107" rx="16" ry="6" fill={cor} opacity="0.2" transform="rotate(-5 110 107)"/>
+      </svg>
+    ),
+    "mesa flexora":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="10" y="75" width="220" height="12" rx="5" fill="#3a3a3a"/>
+        <line x1="20" y1="87" x2="20" y2="145" stroke="#333" strokeWidth="8" strokeLinecap="round"/>
+        <line x1="200" y1="87" x2="200" y2="145" stroke="#333" strokeWidth="8" strokeLinecap="round"/>
+        <rect x="12" y="140" width="195" height="8" rx="4" fill="#2a2a2a"/>
+        <circle cx="215" cy="100" r="12" fill="#444" stroke="#555" strokeWidth="2"/>
+        <circle cx="215" cy="100" r="7" fill="#333"/>
+        <circle cx="28" cy="60" r="11" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="38" y1="63" x2="60" y2="70" stroke="#888" strokeWidth="2" opacity="0.5"/>
+        <line x1="45" y1="70" x2="195" y2="78" stroke="#888" strokeWidth="5" strokeLinecap="round" opacity="0.6"/>
+        <path d="M195 78 Q215 65 218 95" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <ellipse cx="208" cy="78" rx="10" ry="18" fill={cor} opacity="0.35" transform="rotate(-20 208 78)"/>
+        <ellipse cx="208" cy="78" rx="6" ry="11" fill={cor} opacity="0.65" transform="rotate(-20 208 78)"/>
+      </svg>
+    ),
+    "cadeira extensora":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="20" y="80" width="120" height="18" rx="8" fill="#3a3a3a"/>
+        <line x1="30" y1="98" x2="25" y2="145" stroke="#444" strokeWidth="8" strokeLinecap="round"/>
+        <line x1="120" y1="98" x2="125" y2="145" stroke="#444" strokeWidth="8" strokeLinecap="round"/>
+        <rect x="15" y="50" width="18" height="35" rx="6" fill="#3a3a3a"/>
+        <line x1="130" y1="100" x2="230" y2="90" stroke="#888" strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+        <circle cx="240" cy="100" r="14" fill="#444" stroke="#555" strokeWidth="2"/>
+        <circle cx="240" cy="100" r="8" fill="#333"/>
+        <rect x="115" y="108" width="18" height="10" rx="4" fill="#555"/>
+        <circle cx="40" cy="52" r="12" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="40" y1="64" x2="40" y2="80" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="25" y1="70" x2="55" y2="70" stroke="#888" strokeWidth="2.5" opacity="0.5"/>
+        <line x1="40" y1="80" x2="80" y2="82" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <line x1="40" y1="80" x2="55" y2="82" stroke="#888" strokeWidth="3" opacity="0.6"/>
+        <path d="M80 82 Q120 88 128 105" fill="none" stroke={cor} strokeWidth="5" strokeLinecap="round"/>
+        <path d="M55 82 Q100 95 125 112" fill="none" stroke={cor} strokeWidth="3" strokeLinecap="round" opacity="0.6"/>
+        <ellipse cx="100" cy="93" rx="20" ry="10" fill={cor} opacity="0.35" transform="rotate(-5 100 93)"/>
+        <ellipse cx="100" cy="93" rx="12" ry="6" fill={cor} opacity="0.6" transform="rotate(-5 100 93)"/>
+      </svg>
+    ),
+    "pulley":(
+      <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+        <rect x="10" y="5" width="12" height="150" rx="4" fill="#2a2a2a"/>
+        <rect x="258" y="5" width="12" height="150" rx="4" fill="#2a2a2a"/>
+        <rect x="10" y="5" width="260" height="8" rx="4" fill="#333"/>
+        <circle cx="140" cy="12" r="8" fill="#555"/>
+        <line x1="140" y1="20" x2="140" y2="60" stroke="#888" strokeWidth="2.5"/>
+        <line x1="140" y1="60" x2="115" y2="72" stroke="#888" strokeWidth="2"/>
+        <line x1="140" y1="60" x2="165" y2="72" stroke="#888" strokeWidth="2"/>
+        <ellipse cx="140" cy="65" rx="30" ry="8" fill="#555" opacity="0.5"/>
+        <circle cx="140" cy="28" r="13" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="140" y1="41" x2="140" y2="85" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="115" y1="72" x2="108" y2="90" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <line x1="165" y1="72" x2="172" y2="90" stroke="#888" strokeWidth="3" opacity="0.7"/>
+        <path d="M108 90 Q100 108 108 120" fill="none" stroke={cor} strokeWidth="4" strokeLinecap="round"/>
+        <path d="M172 90 Q180 108 172 120" fill="none" stroke={cor} strokeWidth="4" strokeLinecap="round"/>
+        <ellipse cx="107" cy="105" rx="7" ry="14" fill={cor} opacity="0.45" transform="rotate(10 107 105)"/>
+        <ellipse cx="173" cy="105" rx="7" ry="14" fill={cor} opacity="0.45" transform="rotate(-10 173 105)"/>
+        <ellipse cx="107" cy="105" rx="4" ry="9" fill={cor} opacity="0.7" transform="rotate(10 107 105)"/>
+        <ellipse cx="173" cy="105" rx="4" ry="9" fill={cor} opacity="0.7" transform="rotate(-10 173 105)"/>
+        <line x1="140" y1="85" x2="120" y2="130" stroke="#888" strokeWidth="3" opacity="0.5"/>
+        <line x1="140" y1="85" x2="160" y2="130" stroke="#888" strokeWidth="3" opacity="0.5"/>
+      </svg>
+    ),
+  };
+  const key=Object.keys(ills).find(k=>nome?.toLowerCase().includes(k));
+  const fallback=(
+    <svg viewBox="0 0 280 160" style={{width:"100%",height:"100%",display:"block"}}>
+      <circle cx="140" cy="28" r="15" fill="none" stroke="#888" strokeWidth="1.5" opacity="0.7"/>
+      <line x1="140" y1="43" x2="140" y2="95" stroke="#888" strokeWidth="3" strokeLinecap="round" opacity="0.7"/>
+      <line x1="100" y1="58" x2="180" y2="58" stroke="#888" strokeWidth="3" opacity="0.6"/>
+      <line x1="100" y1="58" x2="82" y2="88" stroke="#888" strokeWidth="2.5" opacity="0.6"/>
+      <line x1="180" y1="58" x2="198" y2="88" stroke="#888" strokeWidth="2.5" opacity="0.6"/>
+      <line x1="127" y1="95" x2="115" y2="145" stroke="#888" strokeWidth="3" opacity="0.5"/>
+      <line x1="153" y1="95" x2="165" y2="145" stroke="#888" strokeWidth="3" opacity="0.5"/>
+      <ellipse cx="140" cy="68" rx="28" ry="22" fill={cor} opacity="0.2"/>
+      <ellipse cx="140" cy="68" rx="16" ry="13" fill={cor} opacity="0.4"/>
+    </svg>
+  );
+  return (
+    <div style={{width:"100%",height:"100%",background:"linear-gradient(135deg,#0A0A0A,#111)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      {ills[key]||fallback}
+    </div>
+  );
+};
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
 const T = {
@@ -1431,6 +1726,7 @@ const AlunoApp = ({ aluno }) => {
   const [menuOpen,setMenuOpen]=useState(false);
   const [exSel,setExSel]=useState(null);
   const [done,setDone]=useState([]);
+  const [timerSeg,setTimerSeg]=useState(null);
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"");
   const fichas=Object.keys(aluno.treinos||{});
   const exList=aluno.treinos?.[treinoAtivo]||[];
@@ -1507,14 +1803,20 @@ const AlunoApp = ({ aluno }) => {
       if(exSel) return (
         <div>
           <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:20, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/> Voltar</button>
-          <div style={{ borderRadius:20, overflow:"hidden", marginBottom:20, position:"relative", height:180 }}>
-            {exSel.img ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <ExIllust name={exSel.nome} color={T.yellow} size="hero"/>}
-            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 50%)" }}/>
+          {timerSeg!==null&&<TimerDescanso segundos={timerSeg} onClose={()=>setTimerSeg(null)}/>}
+          {/* Ilustração anatômica */}
+          <div style={{ borderRadius:20, overflow:"hidden", marginBottom:20, position:"relative", height:190 }}>
+            {exSel.img
+              ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+              : <AnatomiaExercicio nome={exSel.nome} cor={GRUPOS_CORES[exSel.musculo]||T.yellow}/>
+            }
+            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 55%)" }}/>
             <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
               <div><h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{exSel.nome}</h2><p style={{ margin:0, color:"#CCC", fontSize:13 }}>{exSel.musculo}</p></div>
               <YBadge text={treinoAtivo}/>
             </div>
           </div>
+          {/* Stats */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
             {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
               <div key={i.l} style={{ background:T.card2, borderRadius:12, padding:12, textAlign:"center", border:`1px solid ${T.yellow}33` }}>
@@ -1524,6 +1826,18 @@ const AlunoApp = ({ aluno }) => {
             ))}
           </div>
           {exSel.obs && <Card style={{ padding:14, marginBottom:12, borderLeft:`3px solid ${T.yellow}` }}><p style={{ margin:"0 0 6px", fontSize:13, fontWeight:700, color:T.text }}>📋 Observações</p><p style={{ margin:0, color:T.text2, fontSize:13 }}>{exSel.obs}</p></Card>}
+          {/* ⏱ BOTÃO TIMER DE DESCANSO */}
+          <div style={{ background:T.card, borderRadius:16, padding:16, marginBottom:12, border:`1px solid ${T.border}` }}>
+            <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:T.text }}>⏱ Timer de descanso</p>
+            <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+              {["30s","45s","60s","90s","2min"].map(t=>(
+                <button key={t} onClick={()=>setTimerSeg(parseDescanso(t))} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 0", color:T.text3, fontSize:12, fontWeight:700, cursor:"pointer" }}>{t}</button>
+              ))}
+            </div>
+            <button onClick={()=>setTimerSeg(parseDescanso(exSel.descanso))} style={{ width:"100%", background:`linear-gradient(135deg,${T.yellow},#FFD700)`, border:"none", borderRadius:12, padding:"13px 0", color:T.bg, fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxSizing:"border-box" }}>
+              ⏱ Iniciar descanso · {exSel.descanso}
+            </button>
+          </div>
           {exSel.video && <a href={exSel.video} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:12, padding:13, fontSize:14, fontWeight:700, color:T.red, textDecoration:"none", marginBottom:10, boxSizing:"border-box" }}><Ic n="play" size={18} color={T.red}/> Assistir vídeo tutorial</a>}
           <button onClick={()=>{setDone(p=>p.includes(exSel.id)?p.filter(x=>x!==exSel.id):[...p,exSel.id]);setExSel(null);}} style={{ width:"100%", background:done.includes(exSel.id)?T.greenDim:T.gold, color:done.includes(exSel.id)?T.green:T.bg, border:done.includes(exSel.id)?`1px solid ${T.green}`:"none", borderRadius:12, padding:14, fontSize:14, fontWeight:900, cursor:"pointer" }}>
             {done.includes(exSel.id)?"✓ Concluído!":"✓ Marcar como concluído"}
@@ -1560,8 +1874,8 @@ const AlunoApp = ({ aluno }) => {
                 const d=done.includes(ex.id);
                 return (
                   <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"33":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
-                    <div style={{ width:80, flexShrink:0, opacity:d?0.4:1 }}>
-                      {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExIllust name={ex.nome} color={T.yellow} size="thumb"/>}
+                    <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
+                      {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <AnatomiaExercicio nome={ex.nome} cor={GRUPOS_CORES[ex.musculo]||T.yellow}/>}
                     </div>
                     <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
                       <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
