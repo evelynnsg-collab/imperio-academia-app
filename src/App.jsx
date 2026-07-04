@@ -1818,6 +1818,7 @@ const AlunoApp = ({ aluno }) => {
   const [menuOpen,setMenuOpen]=useState(false);
   const [exSel,setExSel]=useState(null);
   const [done,setDone]=useState([]);
+  const [seriesDone,setSeriesDone]=useState({}); // { [exId]: nº séries feitas }
   const [timerSeg,setTimerSeg]=useState(null);
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"");
   const fichas=Object.keys(aluno.treinos||{});
@@ -1892,50 +1893,173 @@ const AlunoApp = ({ aluno }) => {
 
     // ── TREINOS
     if(tab==="treinos") {
-      if(exSel) return (
-        <div>
-          <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:20, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/> Voltar</button>
-          {timerSeg!==null&&<TimerDescanso segundos={timerSeg} onClose={()=>setTimerSeg(null)}/>}
-          {/* Ilustração anatômica */}
-          <div style={{ borderRadius:20, overflow:"hidden", marginBottom:20, position:"relative", height:190 }}>
-            {exSel.img
-              ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-              : <ExImg nome={exSel.nome} musculo={exSel.musculo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-            }
-            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 55%)" }}/>
-            <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
-              <div><h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{exSel.nome}</h2><p style={{ margin:0, color:"#CCC", fontSize:13 }}>{exSel.musculo}</p></div>
-              <YBadge text={treinoAtivo}/>
-            </div>
-          </div>
-          {/* Stats */}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
-            {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
-              <div key={i.l} style={{ background:T.card2, borderRadius:12, padding:12, textAlign:"center", border:`1px solid ${T.yellow}33` }}>
-                <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.yellow }}>{i.v}</p>
-                <p style={{ margin:"4px 0 0", fontSize:11, color:T.text3 }}>{i.l}</p>
+      if(exSel) {
+        // Parse número de séries do exercício
+        const totalSeries = parseInt(String(exSel.series).split("-")[0]) || 3;
+        const seriesFeitas = seriesDone[exSel.id] || 0;
+        const tudoConcluido = seriesFeitas >= totalSeries;
+
+        // Ao completar todas as séries → marca como concluído automaticamente
+        const marcarSerie = () => {
+          const novas = (seriesDone[exSel.id] || 0) + 1;
+          setSeriesDone(p => ({ ...p, [exSel.id]: novas }));
+          if (novas >= totalSeries) {
+            setDone(p => p.includes(exSel.id) ? p : [...p, exSel.id]);
+            setTimerSeg(null);
+            setTimeout(() => setExSel(null), 900); // volta após animação
+          } else {
+            setTimerSeg(parseDescanso(exSel.descanso)); // abre timer automático
+          }
+        };
+
+        const resetSeries = () => {
+          setSeriesDone(p => ({ ...p, [exSel.id]: 0 }));
+          setDone(p => p.filter(x => x !== exSel.id));
+          setTimerSeg(null);
+        };
+
+        return (
+          <div>
+            <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}>
+              <Ic n="back" size={18} color={T.text3}/> Voltar
+            </button>
+            {timerSeg!==null && <TimerDescanso segundos={timerSeg} onClose={()=>setTimerSeg(null)}/>}
+
+            {/* Foto real do exercício */}
+            <div style={{ borderRadius:20, overflow:"hidden", marginBottom:16, position:"relative", height:200 }}>
+              {exSel.img
+                ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                : <ExImg nome={exSel.nome} musculo={exSel.musculo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              }
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 50%)" }}/>
+              <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                <div>
+                  <h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{exSel.nome}</h2>
+                  <p style={{ margin:0, color:"#CCC", fontSize:13 }}>{exSel.musculo}</p>
+                </div>
+                <YBadge text={treinoAtivo}/>
               </div>
-            ))}
-          </div>
-          {exSel.obs && <Card style={{ padding:14, marginBottom:12, borderLeft:`3px solid ${T.yellow}` }}><p style={{ margin:"0 0 6px", fontSize:13, fontWeight:700, color:T.text }}>📋 Observações</p><p style={{ margin:0, color:T.text2, fontSize:13 }}>{exSel.obs}</p></Card>}
-          {/* ⏱ BOTÃO TIMER DE DESCANSO */}
-          <div style={{ background:T.card, borderRadius:16, padding:16, marginBottom:12, border:`1px solid ${T.border}` }}>
-            <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:T.text }}>⏱ Timer de descanso</p>
-            <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-              {["30s","45s","60s","90s","2min"].map(t=>(
-                <button key={t} onClick={()=>setTimerSeg(parseDescanso(t))} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"7px 0", color:T.text3, fontSize:12, fontWeight:700, cursor:"pointer" }}>{t}</button>
+            </div>
+
+            {/* Info reps/descanso */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16 }}>
+              {[{v:exSel.reps,l:"Repetições"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
+                <div key={i.l} style={{ background:T.card2, borderRadius:12, padding:12, textAlign:"center", border:`1px solid ${T.yellow}33` }}>
+                  <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.yellow }}>{i.v}</p>
+                  <p style={{ margin:"4px 0 0", fontSize:11, color:T.text3 }}>{i.l}</p>
+                </div>
               ))}
             </div>
-            <button onClick={()=>setTimerSeg(parseDescanso(exSel.descanso))} style={{ width:"100%", background:`linear-gradient(135deg,${T.yellow},#FFD700)`, border:"none", borderRadius:12, padding:"13px 0", color:T.bg, fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxSizing:"border-box" }}>
-              ⏱ Iniciar descanso · {exSel.descanso}
-            </button>
+
+            {/* ── CONTADOR DE SÉRIES ── */}
+            <div style={{ background:`linear-gradient(135deg,#0D0D00,#161616)`, borderRadius:20, padding:20, marginBottom:14, border:`1px solid ${tudoConcluido ? T.green+"55" : T.yellow+"33"}` }}>
+              {/* Header */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div>
+                  <p style={{ margin:0, fontSize:12, color:T.text3, fontWeight:700, letterSpacing:1 }}>SÉRIES</p>
+                  <p style={{ margin:"2px 0 0", fontSize:22, fontWeight:900, color: tudoConcluido ? T.green : T.yellow }}>
+                    {seriesFeitas} / {totalSeries}
+                  </p>
+                </div>
+                {seriesFeitas > 0 && (
+                  <button onClick={resetSeries} style={{ background:"transparent", border:`1px solid ${T.border}`, borderRadius:8, padding:"6px 12px", color:T.text3, fontSize:12, cursor:"pointer" }}>
+                    ↺ Resetar
+                  </button>
+                )}
+              </div>
+
+              {/* Bolinhas das séries */}
+              <div style={{ display:"flex", gap:10, justifyContent:"center", marginBottom:20 }}>
+                {Array.from({ length: totalSeries }).map((_, i) => {
+                  const feita = i < seriesFeitas;
+                  const atual = i === seriesFeitas;
+                  return (
+                    <div key={i} style={{
+                      display:"flex", flexDirection:"column", alignItems:"center", gap:6
+                    }}>
+                      <div style={{
+                        width: atual ? 52 : 44,
+                        height: atual ? 52 : 44,
+                        borderRadius:"50%",
+                        background: feita
+                          ? `linear-gradient(135deg,${T.green},#16A34A)`
+                          : atual
+                            ? T.gold
+                            : T.card2,
+                        border: `2px solid ${feita ? T.green : atual ? T.yellow : T.border}`,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        fontSize: feita ? 18 : 14,
+                        fontWeight:900,
+                        color: feita || atual ? T.bg : T.text3,
+                        transition:"all 0.3s",
+                        boxShadow: atual ? `0 0 18px ${T.yellow}55` : feita ? `0 0 12px ${T.green}44` : "none",
+                      }}>
+                        {feita ? "✓" : i + 1}
+                      </div>
+                      <span style={{ fontSize:10, color: feita ? T.green : atual ? T.yellow : T.text3, fontWeight:700 }}>
+                        {feita ? "Feita" : atual ? "Atual" : `${i+1}ª`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Botão principal */}
+              {tudoConcluido ? (
+                <div style={{ textAlign:"center", padding:"8px 0" }}>
+                  <p style={{ margin:"0 0 8px", fontSize:28 }}>🎉</p>
+                  <p style={{ margin:0, color:T.green, fontSize:16, fontWeight:900 }}>Exercício concluído!</p>
+                  <p style={{ margin:"4px 0 0", color:T.text3, fontSize:13 }}>Voltando para a lista...</p>
+                </div>
+              ) : (
+                <button
+                  onClick={marcarSerie}
+                  style={{
+                    width:"100%",
+                    background: `linear-gradient(135deg,${T.yellow},#FFD700)`,
+                    border:"none", borderRadius:14, padding:16,
+                    color:T.bg, fontSize:15, fontWeight:900, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                    boxShadow:`0 4px 20px ${T.yellow}44`,
+                  }}
+                >
+                  <span style={{ fontSize:20 }}>💪</span>
+                  {seriesFeitas === 0
+                    ? `Iniciar — 1ª série (${exSel.reps} reps)`
+                    : seriesFeitas === totalSeries - 1
+                      ? `Concluir — ${totalSeries}ª série (${exSel.reps} reps)`
+                      : `Série feita! → ${seriesFeitas + 1}ª de ${totalSeries}`
+                  }
+                </button>
+              )}
+            </div>
+
+            {/* Timer de descanso manual */}
+            {!tudoConcluido && (
+              <div style={{ background:T.card, borderRadius:16, padding:14, marginBottom:12, border:`1px solid ${T.border}` }}>
+                <p style={{ margin:"0 0 10px", fontSize:12, fontWeight:700, color:T.text3, letterSpacing:1 }}>⏱ TIMER MANUAL</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  {["30s","45s","60s","90s","2min"].map(t=>(
+                    <button key={t} onClick={()=>setTimerSeg(parseDescanso(t))} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"8px 0", color:T.text3, fontSize:12, fontWeight:700, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {exSel.obs && (
+              <Card style={{ padding:14, marginBottom:12, borderLeft:`3px solid ${T.yellow}` }}>
+                <p style={{ margin:"0 0 4px", fontSize:12, fontWeight:700, color:T.yellow }}>📋 OBSERVAÇÕES DO PROFESSOR</p>
+                <p style={{ margin:0, color:T.text2, fontSize:13 }}>{exSel.obs}</p>
+              </Card>
+            )}
+            {exSel.video && (
+              <a href={exSel.video} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:12, padding:13, fontSize:14, fontWeight:700, color:T.red, textDecoration:"none", marginBottom:10, boxSizing:"border-box" }}>
+                <Ic n="play" size={18} color={T.red}/> Assistir vídeo tutorial
+              </a>
+            )}
           </div>
-          {exSel.video && <a href={exSel.video} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:12, padding:13, fontSize:14, fontWeight:700, color:T.red, textDecoration:"none", marginBottom:10, boxSizing:"border-box" }}><Ic n="play" size={18} color={T.red}/> Assistir vídeo tutorial</a>}
-          <button onClick={()=>{setDone(p=>p.includes(exSel.id)?p.filter(x=>x!==exSel.id):[...p,exSel.id]);setExSel(null);}} style={{ width:"100%", background:done.includes(exSel.id)?T.greenDim:T.gold, color:done.includes(exSel.id)?T.green:T.bg, border:done.includes(exSel.id)?`1px solid ${T.green}`:"none", borderRadius:12, padding:14, fontSize:14, fontWeight:900, cursor:"pointer" }}>
-            {done.includes(exSel.id)?"✓ Concluído!":"✓ Marcar como concluído"}
-          </button>
-        </div>
-      );
+        );
+      }
       return (
         <div>
           {fichas.length>1 && (
@@ -1964,17 +2088,33 @@ const AlunoApp = ({ aluno }) => {
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {exList.map(ex=>{
                 const d=done.includes(ex.id);
+                const sf=seriesDone[ex.id]||0;
+                const ts=parseInt(String(ex.series).split("-")[0])||3;
+                const pct=sf/ts;
                 return (
-                  <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"33":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
+                  <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
                     <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
                       {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} style={{width:80,height:80}}/>}
                     </div>
                     <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
                       <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
-                      {ex.musculo && <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.musculo}</p>}
-                      <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}x{ex.reps} · {ex.descanso}</p>
+                      {ex.musculo && <p style={{ margin:0, color:T.text3, fontSize:11 }}>{ex.musculo}</p>}
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}×{ex.reps}</p>
+                        {sf>0 && !d && (
+                          <span style={{ fontSize:11, color:T.yellow, fontWeight:700 }}>{sf}/{ts} séries</span>
+                        )}
+                      </div>
+                      {/* Barra de progresso de séries */}
+                      {sf>0 && (
+                        <div style={{ height:3, background:T.border, borderRadius:50, marginTop:3 }}>
+                          <div style={{ height:"100%", width:`${pct*100}%`, background:d?T.green:T.gold, borderRadius:50, transition:"width 0.4s" }}/>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", paddingRight:12 }}>{d?<Ic n="check" size={18} color={T.green}/>:<Ic n="chevR" size={16} color={T.text3}/>}</div>
+                    <div style={{ display:"flex", alignItems:"center", paddingRight:12 }}>
+                      {d ? <Ic n="check" size={20} color={T.green}/> : sf>0 ? <span style={{ fontSize:16 }}>🔥</span> : <Ic n="chevR" size={16} color={T.text3}/>}
+                    </div>
                   </div>
                 );
               })}
