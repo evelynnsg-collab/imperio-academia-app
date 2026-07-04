@@ -20,9 +20,14 @@ const firebaseConfig = {
   appId: "1:583980259345:web:9425a8afb1325a66b779b0"
 };
 
+import {
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject, listAll
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
 const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const db     = getFirestore(fbApp);
+const storage = getStorage(fbApp);
 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 // Salva aluno no Firestore
@@ -1073,7 +1078,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
     saveRef(ref,{...r,alimentos:(r.alimentos||[]).filter(a=>a.id!==id)});
   };
 
-  const TABS=[{id:"info",l:"📋 Dados"},{id:"treinos",l:"🏋️ Treinos"},{id:"cardapio",l:"🥗 Cardápio"}];
+  const TABS=[
+    {id:"info",l:"📋 Dados"},
+    {id:"treinos",l:"🏋️ Treinos"},
+    {id:"cardapio",l:"🥗 Cardápio"},
+    {id:"evolucao",l:"📈 Evolução"},
+  ];
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -1223,6 +1233,11 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
             </div>
           </div>
         )}
+
+        {/* ── ABA EVOLUÇÃO (somente admin) ── */}
+        {tab==="evolucao" && (
+          <EvolucaoAdmin alunoId={aluno.id} alunoNome={aluno.nome}/>
+        )}
       </div>
     </div>
   );
@@ -1329,6 +1344,222 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
       <Inp label="VÍDEO EXPLICATIVO (link)" value={local.video||""} onChange={v=>setLocal(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
 
       <Btn onClick={()=>onSave(local)} style={{ width:"100%", color:T.bg, marginTop:8 }}>💾 Salvar refeição</Btn>
+    </div>
+  );
+};
+
+// ─── EVOLUÇÃO ADMIN (Firebase Storage) ────────────────────────────────────────
+const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
+  const [fotos, setFotos] = useState([]);          // [{url, path, data, obs}]
+  const [avaliacoes, setAvaliacoes] = useState([]); // [{data, peso, bf, obs}]
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [showAvForm, setShowAvForm] = useState(false);
+  const [newAv, setNewAv] = useState({ data: new Date().toISOString().split("T")[0], peso:"", bf:"", cintura:"", quadril:"", braco:"", obs:"" });
+  const [msg, setMsg] = useState("");
+  const [delConfirm, setDelConfirm] = useState(null);
+  const fotoInputRef = useRef();
+
+  // Carrega dados do Firestore
+  const carregarDados = async () => {
+    setLoading(true);
+    try {
+      const snap = await getDoc(doc(db, "alunos", alunoId));
+      if (snap.exists()) {
+        const d = snap.data();
+        setFotos(d.fotos_evolucao || []);
+        setAvaliacoes(d.avaliacoes || []);
+      }
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { carregarDados(); }, [alunoId]);
+
+  // Upload de foto para Firebase Storage
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true); setMsg("");
+    try {
+      const timestamp = Date.now();
+      const path = `evolucao/${alunoId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g,"_")}`;
+      const ref = storageRef(storage, path);
+      await uploadBytes(ref, file);
+      const url = await getDownloadURL(ref);
+      const novaFoto = {
+        url, path,
+        data: new Date().toLocaleDateString("pt-BR"),
+        obs: "",
+        timestamp,
+      };
+      const novaLista = [...fotos, novaFoto];
+      await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
+      setFotos(novaLista);
+      setMsg("✅ Foto adicionada!");
+      setTimeout(() => setMsg(""), 2500);
+    } catch(e) {
+      setMsg("❌ Erro ao enviar: " + e.message);
+    }
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  // Deletar foto do Storage + Firestore
+  const deletarFoto = async (foto) => {
+    try {
+      await deleteObject(storageRef(storage, foto.path));
+    } catch(e) { /* já deletado */ }
+    const novaLista = fotos.filter(f => f.path !== foto.path);
+    await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
+    setFotos(novaLista);
+    setDelConfirm(null);
+  };
+
+  // Salvar avaliação no Firestore
+  const salvarAvaliacao = async () => {
+    if (!newAv.data) return;
+    const av = { ...newAv, realizadoPor: "Admin", id: Date.now() };
+    const novaLista = [...avaliacoes, av].sort((a,b) => a.data > b.data ? 1 : -1);
+    await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
+    setAvaliacoes(novaLista);
+    setNewAv({ data: new Date().toISOString().split("T")[0], peso:"", bf:"", cintura:"", quadril:"", braco:"", obs:"" });
+    setShowAvForm(false);
+    setMsg("✅ Avaliação salva!");
+    setTimeout(() => setMsg(""), 2500);
+  };
+
+  const deletarAvaliacao = async (id) => {
+    const novaLista = avaliacoes.filter(a => a.id !== id);
+    await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
+    setAvaliacoes(novaLista);
+  };
+
+  if (loading) return <div style={{ textAlign:"center", padding:40, color:T.text3 }}>Carregando...</div>;
+
+  return (
+    <div>
+      {delConfirm && <Confirm msg="Excluir esta foto?" onYes={() => deletarFoto(delConfirm)} onNo={() => setDelConfirm(null)}/>}
+      {msg && <div style={{ background: msg.startsWith("✅") ? T.greenDim : T.redDim, border:`1px solid ${msg.startsWith("✅")?T.green:T.red}44`, borderRadius:10, padding:"10px 14px", marginBottom:14, color: msg.startsWith("✅") ? T.green : T.red, fontSize:13, fontWeight:700 }}>{msg}</div>}
+
+      {/* ── FOTOS DE EVOLUÇÃO ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+        <div>
+          <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>📸 Fotos de evolução</p>
+          <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{fotos.length} foto{fotos.length!==1?"s":""} · Adicionadas pelo professor</p>
+        </div>
+        <div>
+          <input type="file" accept="image/*" ref={fotoInputRef} style={{ display:"none" }} onChange={handleUpload}/>
+          <button onClick={() => fotoInputRef.current.click()} disabled={uploading}
+            style={{ background: uploading ? "#333" : T.gold, border:"none", borderRadius:10, padding:"9px 14px", color:T.bg, fontSize:13, fontWeight:900, cursor: uploading?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:6, opacity: uploading?0.7:1 }}>
+            <Ic n="camera" size={15} color={T.bg}/> {uploading ? "Enviando..." : "Adicionar foto"}
+          </button>
+        </div>
+      </div>
+
+      {fotos.length === 0
+        ? <div style={{ background:T.card2, borderRadius:16, padding:32, textAlign:"center", marginBottom:20, border:`2px dashed ${T.border}` }}>
+            <p style={{ fontSize:36, margin:"0 0 8px" }}>📸</p>
+            <p style={{ color:T.text3, fontSize:14, margin:0 }}>Nenhuma foto ainda</p>
+            <p style={{ color:T.text3, fontSize:12, margin:"4px 0 0" }}>Adicione a primeira foto de evolução do aluno</p>
+          </div>
+        : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+            {fotos.slice().reverse().map((f,i) => (
+              <div key={f.path||i} style={{ background:T.card2, borderRadius:12, overflow:"hidden", border:`1px solid ${T.border}` }}>
+                <div style={{ position:"relative", height:160 }}>
+                  <img src={f.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                  <button onClick={() => setDelConfirm(f)}
+                    style={{ position:"absolute", top:6, right:6, background:"#000A", border:"none", borderRadius:8, width:28, height:28, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                    <Ic n="trash" size={13} color={T.red}/>
+                  </button>
+                </div>
+                <div style={{ padding:"8px 10px" }}>
+                  <p style={{ margin:0, color:T.text3, fontSize:12, fontWeight:700 }}>{f.data}</p>
+                  {f.obs && <p style={{ margin:"2px 0 0", color:T.text3, fontSize:11 }}>{f.obs}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+      }
+
+      {/* ── AVALIAÇÕES FÍSICAS ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+        <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>📏 Avaliações físicas</p>
+        <button onClick={() => setShowAvForm(!showAvForm)}
+          style={{ background: showAvForm?"transparent":T.gold, border:`1px solid ${showAvForm?T.border:T.yellow}`, borderRadius:10, padding:"8px 14px", color: showAvForm?T.text3:T.bg, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+          {showAvForm ? "Cancelar" : "+ Nova avaliação"}
+        </button>
+      </div>
+
+      {showAvForm && (
+        <Card style={{ padding:16, marginBottom:16, border:`1px solid ${T.yellow}33` }}>
+          <p style={{ margin:"0 0 12px", fontSize:14, fontWeight:700, color:T.yellow }}>Nova avaliação — {alunoNome}</p>
+          <Inp label="DATA" type="date" value={newAv.data} onChange={v=>setNewAv(p=>({...p,data:v}))}/>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+            <Inp label="PESO (kg)" value={newAv.peso} onChange={v=>setNewAv(p=>({...p,peso:v}))} placeholder="Ex: 72.5"/>
+            <Inp label="% GORDURA" value={newAv.bf} onChange={v=>setNewAv(p=>({...p,bf:v}))} placeholder="Ex: 18"/>
+            <Inp label="CINTURA (cm)" value={newAv.cintura} onChange={v=>setNewAv(p=>({...p,cintura:v}))} placeholder="Ex: 80"/>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <Inp label="QUADRIL (cm)" value={newAv.quadril} onChange={v=>setNewAv(p=>({...p,quadril:v}))} placeholder="Ex: 96"/>
+            <Inp label="BRAÇO (cm)" value={newAv.braco} onChange={v=>setNewAv(p=>({...p,braco:v}))} placeholder="Ex: 34"/>
+          </div>
+          <Textarea label="OBSERVAÇÕES" value={newAv.obs} onChange={v=>setNewAv(p=>({...p,obs:v}))} placeholder="Notas sobre a avaliação..." rows={2}/>
+          <button onClick={salvarAvaliacao}
+            style={{ width:"100%", background:T.gold, border:"none", borderRadius:12, padding:14, color:T.bg, fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxSizing:"border-box" }}>
+            <Ic n="save" size={16} color={T.bg}/> Salvar avaliação
+          </button>
+        </Card>
+      )}
+
+      {/* Gráfico de peso */}
+      {avaliacoes.filter(a=>a.peso).length > 1 && (
+        <Card style={{ padding:16, marginBottom:16 }}>
+          <p style={{ margin:"0 0 12px", fontSize:13, fontWeight:700, color:T.text }}>📈 Evolução do peso</p>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:8, height:80 }}>
+            {avaliacoes.filter(a=>a.peso).slice(-8).map((av,i,arr)=>{
+              const vals = arr.map(a=>parseFloat(a.peso)||0);
+              const min = Math.min(...vals); const max = Math.max(...vals);
+              const h = max===min ? 50 : ((parseFloat(av.peso)||0)-min)/(max-min)*60+20;
+              const isLast = i===arr.length-1;
+              return (
+                <div key={av.id||i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:9, color:isLast?T.yellow:T.text3, fontWeight:700 }}>{av.peso}kg</span>
+                  <div style={{ width:"100%", height:h, background:isLast?T.gold:`${T.yellow}44`, borderRadius:"4px 4px 0 0", transition:"height 0.4s" }}/>
+                  <span style={{ fontSize:9, color:T.text3 }}>{av.data?.slice(5)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Lista de avaliações */}
+      {avaliacoes.length === 0
+        ? <div style={{ textAlign:"center", padding:"24px 0", color:T.text3 }}>
+            <p style={{ fontSize:30, margin:"0 0 6px" }}>📋</p>
+            <p style={{ fontSize:13 }}>Nenhuma avaliação registrada ainda</p>
+          </div>
+        : avaliacoes.slice().reverse().map(av => (
+            <Card key={av.id||av.data} style={{ padding:"14px 16px", marginBottom:10, borderLeft:`3px solid ${T.blue}` }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                <p style={{ margin:0, fontSize:14, fontWeight:700, color:T.text }}>{av.data}</p>
+                <button onClick={() => deletarAvaliacao(av.id)}
+                  style={{ background:T.redDim, border:"none", borderRadius:6, width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                  <Ic n="trash" size={12} color={T.red}/>
+                </button>
+              </div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {av.peso && <span style={{ background:T.blue+"22", color:T.blue, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>⚖️ {av.peso}kg</span>}
+                {av.bf && <span style={{ background:T.purple+"22", color:T.purple, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>🔥 {av.bf}% gordura</span>}
+                {av.cintura && <span style={{ background:T.yellowDim, color:T.yellow, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>📏 C:{av.cintura}cm</span>}
+                {av.quadril && <span style={{ background:T.yellowDim, color:T.yellow, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>Q:{av.quadril}cm</span>}
+                {av.braco && <span style={{ background:T.greenDim, color:T.green, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>B:{av.braco}cm</span>}
+              </div>
+              {av.obs && <p style={{ margin:"8px 0 0", color:T.text2, fontSize:12, fontStyle:"italic" }}>{av.obs}</p>}
+            </Card>
+          ))
+      }
     </div>
   );
 };
@@ -2317,6 +2548,41 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
             <span style={{ color:T.text, fontSize:14, fontWeight:600 }}>{v}</span>
           </Card>
         ))}
+
+        {/* Fotos de evolução — somente leitura, adicionadas pelo professor */}
+        {(aluno.fotos_evolucao||[]).length > 0 && (
+          <div style={{ marginTop:20 }}>
+            <p style={{ margin:"0 0 12px", fontSize:15, fontWeight:800, color:T.text }}>📸 Minha evolução</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {(aluno.fotos_evolucao||[]).slice().reverse().map((f,i)=>(
+                <div key={f.path||i} style={{ background:T.card2, borderRadius:12, overflow:"hidden", border:`1px solid ${T.border}` }}>
+                  <img src={f.url} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }}/>
+                  <div style={{ padding:"8px 10px" }}>
+                    <p style={{ margin:0, color:T.text3, fontSize:12, fontWeight:700 }}>{f.data}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Avaliações físicas — somente leitura */}
+        {(aluno.avaliacoes||[]).length > 0 && (
+          <div style={{ marginTop:20 }}>
+            <p style={{ margin:"0 0 12px", fontSize:15, fontWeight:800, color:T.text }}>📏 Minhas avaliações</p>
+            {(aluno.avaliacoes||[]).slice().reverse().slice(0,3).map((av,i)=>(
+              <Card key={av.id||i} style={{ padding:"13px 16px", marginBottom:10, borderLeft:`3px solid ${T.blue}` }}>
+                <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.text }}>{av.data}</p>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {av.peso && <span style={{ background:T.blue+"22", color:T.blue, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>⚖️ {av.peso}kg</span>}
+                  {av.bf && <span style={{ background:T.purple+"22", color:T.purple, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>🔥 {av.bf}% gordura</span>}
+                  {av.cintura && <span style={{ background:T.yellowDim, color:T.yellow, borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:700 }}>C:{av.cintura}cm</span>}
+                </div>
+                {av.obs && <p style={{ margin:"6px 0 0", color:T.text2, fontSize:12, fontStyle:"italic" }}>{av.obs}</p>}
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
 
