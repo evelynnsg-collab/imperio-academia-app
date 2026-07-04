@@ -1522,113 +1522,238 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
   );
 };
 
-// ─── BIBLIOTECA ADMIN (browse + edit exercises) ───────────────────────────────
+// ─── BIBLIOTECA ADMIN ─────────────────────────────────────────────────────────
 const BibliotecaAdmin = () => {
+  // customExs: exercícios adicionados/editados pelo admin (salvos no Firestore)
   const [customExs, setCustomExs] = useState([]);
+  const [fotoCustom, setFotoCustom] = useState({}); // { [exId]: base64 } fotos sobrescritas
   const [grupoFiltro, setGrupoFiltro] = useState("Todos");
   const [busca, setBusca] = useState("");
-  const [exSel, setExSel] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const todos = [...BIBLIOTECA, ...customExs];
+  const [exSel, setExSel] = useState(null);  // exercício em detalhe/edição
+  const [modo, setModo] = useState(null);     // "ver" | "editar" | "novo"
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // Carrega customizações do Firestore ao montar
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "biblioteca_custom"));
+        const exs = snap.docs.map(d => d.data());
+        const fotos = {};
+        exs.forEach(e => { if(e._fotoBase64) fotos[e.id] = e._fotoBase64; });
+        setCustomExs(exs.filter(e => !e._deleted));
+        setFotoCustom(fotos);
+      } catch(e) { /* offline ou sem permissão */ }
+    })();
+  }, []);
+
+  // Salva exercício no Firestore
+  const salvarExercicio = async (ex) => {
+    setLoading(true); setMsg("");
+    try {
+      const id = ex.id || "custom_" + Date.now();
+      const data = { ...ex, id };
+      await setDoc(doc(db, "biblioteca_custom", id), data);
+      if(customExs.find(e => e.id === id)) {
+        setCustomExs(p => p.map(e => e.id === id ? data : e));
+      } else {
+        setCustomExs(p => [...p, data]);
+      }
+      if(data._fotoBase64) setFotoCustom(p => ({ ...p, [id]: data._fotoBase64 }));
+      setMsg("✅ Salvo com sucesso!");
+      setTimeout(() => { setMsg(""); setModo(null); setExSel(null); }, 1200);
+    } catch(e) {
+      setMsg("❌ Erro ao salvar: " + e.message);
+    }
+    setLoading(false);
+  };
+
+  // Deleta exercício custom
+  const deletarEx = async (id) => {
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, "biblioteca_custom", id));
+      setCustomExs(p => p.filter(e => e.id !== id));
+      setFotoCustom(p => { const n={...p}; delete n[id]; return n; });
+      setExSel(null); setModo(null);
+    } catch(e) { setMsg("❌ Erro: " + e.message); }
+    setLoading(false);
+  };
+
+  const todos = [...BIBLIOTECA, ...customExs.filter(c => !BIBLIOTECA.find(b => b.id === c.id))];
   const grupos = ["Todos", ...Object.keys(GRUPOS_CORES)];
   const filtrados = todos.filter(ex => {
-    const matchG = grupoFiltro==="Todos" || ex.grupo===grupoFiltro;
-    const matchB = !busca || ex.nome.toLowerCase().includes(busca.toLowerCase()) || ex.grupo.toLowerCase().includes(busca.toLowerCase());
+    const matchG = grupoFiltro === "Todos" || ex.grupo === grupoFiltro;
+    const matchB = !busca || ex.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      ex.grupo.toLowerCase().includes(busca.toLowerCase()) ||
+      (ex.principais||[]).some(p => p.toLowerCase().includes(busca.toLowerCase()));
     return matchG && matchB;
   });
 
-  const saveCustom = (ex) => {
-    if(ex.id && customExs.find(e=>e.id===ex.id)) setCustomExs(p=>p.map(e=>e.id===ex.id?ex:e));
-    else setCustomExs(p=>[...p,{...ex,id:"custom_"+Date.now()}]);
-    setShowAdd(false); setExSel(null);
-  };
-
-  if(showAdd || (exSel && customExs.find(e=>e.id===exSel?.id))) {
-    const base = showAdd ? {nome:"",grupo:"Peito",principais:[],secundarios:[],desc:"",passos:[""],erros:[""],cuidados:[""],series:"3",reps:"12",descanso:"60s",video:""} : exSel;
-    return <ExercicioEditor ex={base} onSave={saveCustom} onBack={()=>{setShowAdd(false);setExSel(null);}}/>;
+  // Modo EDITAR ou NOVO
+  if (modo === "editar" || modo === "novo") {
+    const base = modo === "novo"
+      ? { nome:"", grupo:"Peito", principais:[], secundarios:[], desc:"", passos:[""],
+          erros:[""], cuidados:[""], series:"3", reps:"12", descanso:"60s", video:"", _fotoBase64:"" }
+      : { ...exSel, _fotoBase64: fotoCustom[exSel?.id] || "" };
+    return (
+      <ExercicioEditor
+        ex={base}
+        isCustom={!!customExs.find(e => e.id === exSel?.id) || modo === "novo"}
+        loading={loading}
+        onSave={salvarExercicio}
+        onBack={() => { setModo(exSel ? "ver" : null); }}
+        onDelete={customExs.find(e => e.id === exSel?.id) ? () => deletarEx(exSel.id) : null}
+        msg={msg}
+      />
+    );
   }
 
-  if(exSel) {
-    const cor = GRUPOS_CORES[exSel.grupo]||T.yellow;
+  // Modo VER detalhe
+  if (modo === "ver" && exSel) {
+    const cor = GRUPOS_CORES[exSel.grupo] || T.yellow;
+    const isCustom = !!customExs.find(e => e.id === exSel.id);
+    const fotoReal = fotoCustom[exSel.id] || getExImg(exSel.nome);
     return (
       <div>
-        <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/>Biblioteca</button>
-        <div style={{ display:"flex", gap:14, alignItems:"center", marginBottom:20, padding:14, background:T.bg2, borderRadius:14 }}>
-          <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:80,height:80}}/></div>
-          <div style={{ flex:1 }}>
-            <YBadge text={exSel.grupo} color={cor}/>
-            <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
-            <p style={{ margin:0, color:T.text3, fontSize:12 }}>{exSel.principais?.join(" · ")}</p>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <button onClick={() => { setModo(null); setExSel(null); }} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}>
+            <Ic n="back" size={18} color={T.text3}/> Biblioteca
+          </button>
+          <Btn small onClick={() => setModo("editar")} style={{ color:T.bg }}>
+            <Ic n="edit" size={13} color={T.bg}/> {isCustom ? "Editar" : "Personalizar"}
+          </Btn>
+        </div>
+
+        {/* Foto grande */}
+        <div style={{ borderRadius:18, overflow:"hidden", marginBottom:16, height:220, position:"relative", background:T.bg2 }}>
+          {fotoReal
+            ? <img src={fotoReal} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            : <AnatomiaExercicio nome={exSel.nome} cor={cor}/>
+          }
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 55%)" }}/>
+          <div style={{ position:"absolute", bottom:14, left:16, right:16 }}>
+            <div style={{ display:"inline-block", background:cor+"22", border:`1px solid ${cor}55`, borderRadius:20, padding:"2px 12px", marginBottom:6 }}>
+              <span style={{ color:cor, fontSize:11, fontWeight:700 }}>{isCustom ? "⭐ CUSTOM — " : ""}{exSel.grupo}</span>
+            </div>
+            <h2 style={{ margin:0, fontSize:20, fontWeight:900, color:T.text }}>{exSel.nome}</h2>
+            <p style={{ margin:"4px 0 0", color:"#CCC", fontSize:12 }}>{(exSel.principais||[]).join(" · ")}</p>
           </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
-          {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i=>(
-            <div key={i.l} style={{ background:T.card2, borderRadius:10, padding:"10px 8px", textAlign:"center", border:`1px solid ${cor}33` }}>
-              <p style={{ margin:0, fontSize:15, fontWeight:900, color:cor }}>{i.v}</p>
+
+        {/* Stats */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:14 }}>
+          {[{v:exSel.series,l:"Séries"},{v:exSel.reps,l:"Reps"},{v:exSel.descanso,l:"Descanso"}].map(i => (
+            <div key={i.l} style={{ background:T.card2, borderRadius:12, padding:"12px 8px", textAlign:"center", border:`1px solid ${cor}33` }}>
+              <p style={{ margin:0, fontSize:16, fontWeight:900, color:cor }}>{i.v}</p>
               <p style={{ margin:"3px 0 0", fontSize:10, color:T.text3 }}>{i.l}</p>
             </div>
           ))}
         </div>
-        <Card style={{ padding:14, marginBottom:12 }}>
-          <p style={{ margin:"0 0 6px", fontSize:13, fontWeight:700, color:T.text }}>Descrição</p>
+
+        {exSel.desc && <Card style={{ padding:14, marginBottom:10 }}>
+          <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:T.text3, letterSpacing:.8 }}>DESCRIÇÃO</p>
           <p style={{ margin:0, color:T.text2, fontSize:13, lineHeight:1.6 }}>{exSel.desc}</p>
-        </Card>
-        <Card style={{ padding:14, marginBottom:12 }}>
-          <p style={{ margin:"0 0 10px", fontSize:13, fontWeight:700, color:T.text }}>📋 Execução passo a passo</p>
-          {exSel.passos?.map((p,i)=>(
-            <div key={i} style={{ display:"flex", gap:8, marginBottom:6 }}>
-              <span style={{ width:20, height:20, borderRadius:50, background:cor+"22", color:cor, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</span>
-              <p style={{ margin:0, color:T.text2, fontSize:13 }}>{p}</p>
+        </Card>}
+
+        {exSel.passos?.filter(Boolean).length > 0 && <Card style={{ padding:14, marginBottom:10 }}>
+          <p style={{ margin:"0 0 10px", fontSize:12, fontWeight:700, color:T.text3, letterSpacing:.8 }}>📋 EXECUÇÃO</p>
+          {exSel.passos.filter(Boolean).map((p,i) => (
+            <div key={i} style={{ display:"flex", gap:10, marginBottom:8 }}>
+              <span style={{ width:22, height:22, borderRadius:50, background:cor+"22", color:cor, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{i+1}</span>
+              <p style={{ margin:0, color:T.text2, fontSize:13, lineHeight:1.5 }}>{p}</p>
             </div>
           ))}
-        </Card>
-        {exSel.erros?.length>0 && <Card style={{ padding:14, marginBottom:12, borderLeft:`3px solid ${T.red}` }}>
-          <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.red }}>❌ Erros comuns</p>
-          {exSel.erros.map((e,i)=><p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {e}</p>)}
         </Card>}
-        {exSel.cuidados?.length>0 && <Card style={{ padding:14, marginBottom:16, borderLeft:`3px solid ${T.yellow}` }}>
-          <p style={{ margin:"0 0 8px", fontSize:13, fontWeight:700, color:T.yellow }}>⚠️ Cuidados de postura</p>
-          {exSel.cuidados.map((c,i)=><p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {c}</p>)}
+
+        {exSel.erros?.filter(Boolean).length > 0 && <Card style={{ padding:14, marginBottom:10, borderLeft:`3px solid ${T.red}` }}>
+          <p style={{ margin:"0 0 8px", fontSize:12, fontWeight:700, color:T.red }}>❌ ERROS COMUNS</p>
+          {exSel.erros.filter(Boolean).map((e,i) => <p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {e}</p>)}
         </Card>}
+
+        {exSel.cuidados?.filter(Boolean).length > 0 && <Card style={{ padding:14, marginBottom:10, borderLeft:`3px solid ${T.yellow}` }}>
+          <p style={{ margin:"0 0 8px", fontSize:12, fontWeight:700, color:T.yellow }}>⚠️ CUIDADOS</p>
+          {exSel.cuidados.filter(Boolean).map((c,i) => <p key={i} style={{ margin:"0 0 4px", color:T.text2, fontSize:13 }}>• {c}</p>)}
+        </Card>}
+
+        {exSel.video && <a href={exSel.video} target="_blank" rel="noopener noreferrer"
+          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:12, padding:13, fontSize:14, fontWeight:700, color:T.red, textDecoration:"none", marginBottom:10, boxSizing:"border-box" }}>
+          <Ic n="play" size={18} color={T.red}/> Assistir vídeo demonstrativo
+        </a>}
+
+        <Btn full onClick={() => setModo("editar")} style={{ color:T.bg, marginTop:4 }}>
+          <Ic n="edit" size={16} color={T.bg}/> {isCustom ? "Editar este exercício" : "Personalizar — trocar foto / editar dados"}
+        </Btn>
       </div>
     );
   }
 
+  // GRADE principal
   return (
     <div>
+      {msg && <div style={{ background:msg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:12, color:msg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{msg}</div>}
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
         <div>
-          <p style={{ margin:0, fontSize:16, fontWeight:900, color:T.text }}>📚 Biblioteca de Exercícios</p>
-          <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{todos.length} exercícios pré-cadastrados</p>
+          <p style={{ margin:0, fontSize:16, fontWeight:900, color:T.text }}>📚 Biblioteca</p>
+          <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{todos.length} exercícios · {customExs.length} customizados</p>
         </div>
-        <Btn small onClick={()=>setShowAdd(true)} style={{ color:T.bg }}><Ic n="plus" size={13} color={T.bg}/>Novo</Btn>
+        <Btn small onClick={() => { setExSel(null); setModo("novo"); }} style={{ color:T.bg }}>
+          <Ic n="plus" size={13} color={T.bg}/> Novo exercício
+        </Btn>
       </div>
+
+      {/* Busca */}
       <div style={{ position:"relative", marginBottom:10 }}>
         <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={15} color={T.text3}/></div>
-        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar exercício ou músculo..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:10, padding:"10px 12px 10px 38px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou músculo..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:10, padding:"10px 12px 10px 38px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" }}/>
       </div>
+
+      {/* Filtros de grupo */}
       <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:8, marginBottom:14 }}>
-        {grupos.map(g=>(
-          <button key={g} onClick={()=>setGrupoFiltro(g)} style={{ flexShrink:0, background:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow)+"22":"transparent", border:`1px solid ${grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.border}`, borderRadius:20, padding:"5px 12px", color:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.text3, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
-            {g==="Todos"?"Todos":GRUPOS_EMOJI[g]+" "+g}
+        {grupos.map(g => (
+          <button key={g} onClick={() => setGrupoFiltro(g)} style={{ flexShrink:0, background:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow)+"22":"transparent", border:`1px solid ${grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.border}`, borderRadius:20, padding:"5px 12px", color:grupoFiltro===g?(GRUPOS_CORES[g]||T.yellow):T.text3, fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+            {g==="Todos" ? "Todos" : GRUPOS_EMOJI[g]+" "+g}
           </button>
         ))}
       </div>
-      <p style={{ color:T.text3, fontSize:12, marginBottom:10 }}>{filtrados.length} resultados</p>
+
+      <p style={{ color:T.text3, fontSize:12, marginBottom:10 }}>{filtrados.length} resultados — toque para ver ou editar</p>
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-        {filtrados.map(ex=>{
-          const cor = GRUPOS_CORES[ex.grupo]||T.yellow;
-          const isCustom = customExs.find(e=>e.id===ex.id);
+        {filtrados.map(ex => {
+          const cor = GRUPOS_CORES[ex.grupo] || T.yellow;
+          const isCustom = !!customExs.find(e => e.id === ex.id);
+          const fotoCustomizada = fotoCustom[ex.id];
           return (
-            <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${isCustom?T.yellow:T.border}`, cursor:"pointer" }}>
-              <div style={{ position:"relative" }}>
-                <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
-                <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={isCustom?"CUSTOM":ex.grupo} color={isCustom?T.yellow:cor}/></div>
+            <div key={ex.id} onClick={() => { setExSel(ex); setModo("ver"); }}
+              style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${isCustom?T.yellow:T.border}`, cursor:"pointer", position:"relative" }}>
+              {/* Imagem */}
+              <div style={{ height:110, overflow:"hidden", background:T.bg2, position:"relative" }}>
+                {fotoCustomizada
+                  ? <img src={fotoCustomizada} alt={ex.nome} style={{ width:"100%", height:110, objectFit:"cover" }}/>
+                  : <ExImg nome={ex.nome} musculo={ex.grupo} style={{ width:"100%", height:110, objectFit:"cover" }}/>
+                }
+                {/* Badge grupo */}
+                <div style={{ position:"absolute", top:6, left:6 }}>
+                  <span style={{ background:cor+"DD", color:"#fff", borderRadius:20, padding:"2px 8px", fontSize:10, fontWeight:700 }}>{ex.grupo}</span>
+                </div>
+                {/* Badge custom */}
+                {isCustom && <div style={{ position:"absolute", top:6, right:6 }}>
+                  <span style={{ background:T.yellow, color:T.bg, borderRadius:20, padding:"2px 8px", fontSize:9, fontWeight:900 }}>⭐ CUSTOM</span>
+                </div>}
+                {/* Ícone de edição no hover simulado */}
+                <div style={{ position:"absolute", bottom:6, right:6, background:"#000A", borderRadius:8, padding:"4px 8px", display:"flex", alignItems:"center", gap:4 }}>
+                  <Ic n="edit" size={11} color="#FFF"/>
+                  <span style={{ color:"#FFF", fontSize:10, fontWeight:700 }}>Editar</span>
+                </div>
               </div>
+              {/* Info */}
               <div style={{ padding:"10px 10px 12px" }}>
                 <p style={{ margin:"0 0 3px", fontSize:12, fontWeight:800, color:T.text, lineHeight:1.3 }}>{ex.nome}</p>
                 <p style={{ margin:"0 0 6px", color:T.text3, fontSize:11 }}>{ex.principais?.[0]}</p>
-                <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                <div style={{ display:"flex", gap:4 }}>
                   <span style={{ background:cor+"22", color:cor, borderRadius:5, padding:"2px 6px", fontSize:10, fontWeight:700 }}>{ex.series}s</span>
                   <span style={{ background:T.bg, color:T.text3, borderRadius:5, padding:"2px 6px", fontSize:10 }}>{ex.reps}r</span>
                 </div>
@@ -1641,72 +1766,155 @@ const BibliotecaAdmin = () => {
   );
 };
 
-const ExercicioEditor = ({ ex, onSave, onBack }) => {
-  const [f,setF]=useState({...ex, passos:ex.passos||[""], erros:ex.erros||[""], cuidados:ex.cuidados||[""], principais:(ex.principais||[]).join(", "), secundarios:(ex.secundarios||[]).join(", ")});
-  const imgRef=useRef();
-  const handleImg=(e)=>{ const file=e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=ev=>setF(p=>({...p,img:ev.target.result})); r.readAsDataURL(file); };
-  const listEdit=(field,idx,val)=>setF(p=>({...p,[field]:p[field].map((x,i)=>i===idx?val:x)}));
-  const listAdd=(field)=>setF(p=>({...p,[field]:[...p[field],""]}));
-  const listRemove=(field,idx)=>setF(p=>({...p,[field]:p[field].filter((_,i)=>i!==idx)}));
+// ─── EDITOR DE EXERCÍCIO (novo ou editar) ────────────────────────────────────
+const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg }) => {
+  const [f, setF] = useState({
+    ...ex,
+    passos: ex.passos?.length ? ex.passos : [""],
+    erros:  ex.erros?.length  ? ex.erros  : [""],
+    cuidados: ex.cuidados?.length ? ex.cuidados : [""],
+    principais: Array.isArray(ex.principais) ? ex.principais.join(", ") : (ex.principais||""),
+    secundarios: Array.isArray(ex.secundarios) ? ex.secundarios.join(", ") : (ex.secundarios||""),
+    _fotoBase64: ex._fotoBase64 || "",
+  });
+  const [showDelConfirm, setShowDelConfirm] = useState(false);
+  const imgRef = useRef();
+
+  const handleImg = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const listEdit   = (field,i,v) => setF(p=>({...p,[field]:p[field].map((x,j)=>j===i?v:x)}));
+  const listAdd    = (field)     => setF(p=>({...p,[field]:[...p[field],""]}));
+  const listRemove = (field,i)   => setF(p=>({...p,[field]:p[field].filter((_,j)=>j!==i)}));
+
+  const handleSave = () => {
+    if (!f.nome.trim()) return;
+    onSave({
+      ...f,
+      principais: f.principais.split(",").map(s=>s.trim()).filter(Boolean),
+      secundarios: f.secundarios.split(",").map(s=>s.trim()).filter(Boolean),
+    });
+  };
+
   return (
     <div>
-      <button onClick={onBack} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/>Voltar</button>
-      <p style={{ margin:"0 0 16px", fontSize:16, fontWeight:900, color:T.text }}>{ex.id?"Editar exercício":"Novo exercício"}</p>
-      <Inp label="NOME DO EXERCÍCIO *" value={f.nome} onChange={v=>setF(p=>({...p,nome:v}))}/>
+      {showDelConfirm && <Confirm msg={`Excluir "${f.nome}"?`} onYes={()=>{onDelete();setShowDelConfirm(false);}} onNo={()=>setShowDelConfirm(false)}/>}
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}>
+          <Ic n="back" size={18} color={T.text3}/> Voltar
+        </button>
+        {isCustom && onDelete && (
+          <button onClick={() => setShowDelConfirm(true)} style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:8, padding:"6px 12px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            🗑 Excluir
+          </button>
+        )}
+      </div>
+
+      <p style={{ margin:"0 0 20px", fontSize:16, fontWeight:900, color:T.text }}>
+        {ex.id ? "✏️ Editar exercício" : "➕ Novo exercício"}
+      </p>
+
+      {/* ── FOTO ── */}
+      <div style={{ marginBottom:20 }}>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8, display:"block", marginBottom:8 }}>📸 FOTO DO EXERCÍCIO</label>
+        {/* Preview da foto atual */}
+        <div style={{ borderRadius:16, overflow:"hidden", height:200, background:T.bg2, marginBottom:10, position:"relative" }}>
+          {f._fotoBase64
+            ? <img src={f._fotoBase64} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            : <ExImg nome={f.nome} musculo={f.grupo} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          }
+          {f._fotoBase64 && (
+            <button onClick={() => setF(p=>({...p,_fotoBase64:""}))}
+              style={{ position:"absolute", top:10, right:10, background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:8, padding:"4px 10px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              ✕ Remover
+            </button>
+          )}
+        </div>
+        <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
+        <button onClick={() => imgRef.current.click()} style={{ width:"100%", background:T.card2, border:`2px dashed ${T.yellow}88`, borderRadius:14, padding:"14px 0", color:T.yellow, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <Ic n="upload" size={18} color={T.yellow}/> {f._fotoBase64 ? "Trocar foto" : "Fazer upload da foto"}
+        </button>
+        <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
+          {f._fotoBase64 ? "📸 Foto personalizada carregada" : "Sem foto → usa imagem padrão do banco de dados"}
+        </p>
+      </div>
+
+      {/* ── DADOS BÁSICOS ── */}
+      <Inp label="NOME DO EXERCÍCIO *" value={f.nome} onChange={v=>setF(p=>({...p,nome:v}))} placeholder="Ex: Supino Reto com Barra"/>
+
       <div style={{ marginBottom:12 }}>
-        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>GRUPO MUSCULAR</label>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8, display:"block", marginBottom:5 }}>GRUPO MUSCULAR</label>
         <select value={f.grupo} onChange={e=>setF(p=>({...p,grupo:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
-          {Object.keys(GRUPOS_CORES).map(g=><option key={g} value={g}>{g}</option>)}
+          {Object.keys(GRUPOS_CORES).map(g=><option key={g} value={g}>{GRUPOS_EMOJI[g]} {g}</option>)}
         </select>
       </div>
-      <Inp label="MÚSCULOS PRINCIPAIS (separados por vírgula)" value={f.principais} onChange={v=>setF(p=>({...p,principais:v}))} placeholder="Ex: Peitoral maior, Deltóide"/>
+
+      <Inp label="MÚSCULOS PRINCIPAIS (separados por vírgula)" value={f.principais} onChange={v=>setF(p=>({...p,principais:v}))} placeholder="Ex: Peitoral maior, Deltóide anterior"/>
       <Inp label="MÚSCULOS SECUNDÁRIOS" value={f.secundarios} onChange={v=>setF(p=>({...p,secundarios:v}))} placeholder="Ex: Tríceps, Bíceps"/>
-      <Textarea label="DESCRIÇÃO" value={f.desc||""} onChange={v=>setF(p=>({...p,desc:v}))} rows={2}/>
+      <Textarea label="DESCRIÇÃO DO EXERCÍCIO" value={f.desc||""} onChange={v=>setF(p=>({...p,desc:v}))} rows={2} placeholder="Descrição breve do exercício e seus benefícios"/>
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
-        <Inp label="SÉRIES" value={f.series} onChange={v=>setF(p=>({...p,series:v}))}/>
-        <Inp label="REPS" value={f.reps} onChange={v=>setF(p=>({...p,reps:v}))}/>
-        <Inp label="DESCANSO" value={f.descanso} onChange={v=>setF(p=>({...p,descanso:v}))}/>
+        <Inp label="SÉRIES" value={f.series} onChange={v=>setF(p=>({...p,series:v}))} placeholder="Ex: 4"/>
+        <Inp label="REPS" value={f.reps} onChange={v=>setF(p=>({...p,reps:v}))} placeholder="Ex: 12"/>
+        <Inp label="DESCANSO" value={f.descanso} onChange={v=>setF(p=>({...p,descanso:v}))} placeholder="Ex: 60s"/>
       </div>
-      {/* Passos */}
-      <div style={{ marginBottom:12 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8 }}>PASSO A PASSO</label>
-          <button onClick={()=>listAdd("passos")} style={{ background:T.yellowDim, border:"none", borderRadius:6, padding:"3px 10px", color:T.yellow, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
+
+      <Inp label="🎬 VÍDEO DEMONSTRATIVO (link YouTube/Vimeo)" value={f.video||""} onChange={v=>setF(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
+
+      {/* ── PASSO A PASSO ── */}
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8 }}>📋 PASSO A PASSO</label>
+          <button onClick={()=>listAdd("passos")} style={{ background:T.yellowDim, border:"none", borderRadius:6, padding:"4px 12px", color:T.yellow, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar passo</button>
         </div>
         {f.passos.map((p,i)=>(
-          <div key={i} style={{ display:"flex", gap:6, marginBottom:6 }}>
-            <span style={{ width:20, height:20, background:T.yellowDim, borderRadius:50, color:T.yellow, fontSize:10, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:12 }}>{i+1}</span>
-            <input value={p} onChange={e=>listEdit("passos",i,e.target.value)} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 10px", color:T.text, fontSize:13, outline:"none" }}/>
-            {f.passos.length>1 && <button onClick={()=>listRemove("passos",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={12} color={T.red}/></button>}
+          <div key={i} style={{ display:"flex", gap:8, marginBottom:8, alignItems:"flex-start" }}>
+            <span style={{ width:24, height:24, background:T.yellowDim, borderRadius:50, color:T.yellow, fontSize:11, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:10 }}>{i+1}</span>
+            <input value={p} onChange={e=>listEdit("passos",i,e.target.value)} placeholder={`Passo ${i+1}...`} style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 12px", color:T.text, fontSize:13, outline:"none" }}/>
+            {f.passos.length > 1 && <button onClick={()=>listRemove("passos",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", marginTop:6, flexShrink:0 }}><Ic n="x" size={13} color={T.red}/></button>}
           </div>
         ))}
       </div>
-      {/* Erros */}
-      <div style={{ marginBottom:12 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8 }}>ERROS COMUNS</label>
-          <button onClick={()=>listAdd("erros")} style={{ background:T.redDim, border:"none", borderRadius:6, padding:"3px 10px", color:T.red, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
+
+      {/* ── ERROS COMUNS ── */}
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8 }}>❌ ERROS COMUNS</label>
+          <button onClick={()=>listAdd("erros")} style={{ background:T.redDim, border:"none", borderRadius:6, padding:"4px 12px", color:T.red, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
         </div>
         {f.erros.map((e,i)=>(
-          <div key={i} style={{ display:"flex", gap:6, marginBottom:6 }}>
-            <input value={e} onChange={ev=>listEdit("erros",i,ev.target.value)} placeholder="Ex: Arredondar a lombar" style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px", color:T.text, fontSize:13, outline:"none" }}/>
-            {f.erros.length>1 && <button onClick={()=>listRemove("erros",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={12} color={T.red}/></button>}
+          <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <input value={e} onChange={ev=>listEdit("erros",i,ev.target.value)} placeholder="Ex: Arredondar a lombar" style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 12px", color:T.text, fontSize:13, outline:"none" }}/>
+            {f.erros.length > 1 && <button onClick={()=>listRemove("erros",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}><Ic n="x" size={13} color={T.red}/></button>}
           </div>
         ))}
       </div>
-      {/* Imagem */}
-      <div style={{ marginBottom:12 }}>
-        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>IMAGEM (opcional)</label>
-        {f.img && <img src={f.img} alt="" style={{ width:"100%", borderRadius:10, marginBottom:8, maxHeight:120, objectFit:"cover" }}/>}
-        <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
-        <button onClick={()=>imgRef.current.click()} style={{ background:T.card2, border:`1px dashed ${T.border}`, borderRadius:10, padding:"10px 16px", color:T.text3, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
-          <Ic n="upload" size={16} color={T.text3}/>{f.img?"Trocar imagem":"Upload de imagem"}
-        </button>
+
+      {/* ── CUIDADOS ── */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+          <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8 }}>⚠️ CUIDADOS DE POSTURA</label>
+          <button onClick={()=>listAdd("cuidados")} style={{ background:T.yellowDim, border:"none", borderRadius:6, padding:"4px 12px", color:T.yellow, fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
+        </div>
+        {f.cuidados.map((c,i)=>(
+          <div key={i} style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <input value={c} onChange={ev=>listEdit("cuidados",i,ev.target.value)} placeholder="Ex: Mantenha a coluna neutra" style={{ flex:1, background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 12px", color:T.text, fontSize:13, outline:"none" }}/>
+            {f.cuidados.length > 1 && <button onClick={()=>listRemove("cuidados",i)} style={{ background:T.redDim, border:"none", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}><Ic n="x" size={13} color={T.red}/></button>}
+          </div>
+        ))}
       </div>
-      <Inp label="VÍDEO DEMONSTRATIVO (link)" value={f.video||""} onChange={v=>setF(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
-      <Btn onClick={()=>onSave({...f, principais:f.principais.split(",").map(s=>s.trim()).filter(Boolean), secundarios:f.secundarios.split(",").map(s=>s.trim()).filter(Boolean)})} style={{ width:"100%", color:T.bg, marginTop:8 }}>
-        💾 Salvar exercício
-      </Btn>
+
+      {msg && <div style={{ background:msg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:12, color:msg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{msg}</div>}
+
+      <button onClick={handleSave} disabled={loading || !f.nome.trim()} style={{ width:"100%", background:loading?"#333":T.gold, color:T.bg, border:"none", borderRadius:14, padding:16, fontSize:15, fontWeight:900, cursor:loading?"not-allowed":"pointer", opacity:loading||!f.nome.trim()?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxSizing:"border-box" }}>
+        {loading ? "Salvando..." : <><Ic n="save" size={18} color={T.bg}/> Salvar exercício</>}
+      </button>
     </div>
   );
 };
