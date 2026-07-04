@@ -1,5 +1,84 @@
 import { useState, useRef, useEffect } from "react";
 
+// ─── IMAGENS REAIS DE EXERCÍCIOS (Free Exercise DB — domínio público) ─────────
+const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
+const EX_IMGS = {
+  // Peito
+  "Supino Reto com Barra":      IMG_BASE + "Barbell_Bench_Press_-_Medium_Grip/0.jpg",
+  "Supino Inclinado com Halteres": IMG_BASE + "Incline_Dumbbell_Press/0.jpg",
+  "Crucifixo com Halteres":     IMG_BASE + "Dumbbell_Flyes/0.jpg",
+  "Crossover no Cabo":          IMG_BASE + "Cable_Crossover/0.jpg",
+  "Fundos no Paralelo":         IMG_BASE + "Dips_-_Chest_Version/0.jpg",
+  // Costas
+  "Puxada Frontal na Polia":    IMG_BASE + "Wide-Grip_Lat_Pulldown/0.jpg",
+  "Remada Curvada com Barra":   IMG_BASE + "Bent_Over_Barbell_Row/0.jpg",
+  "Remada Unilateral com Halter": IMG_BASE + "One-Arm_Dumbbell_Row/0.jpg",
+  "Levantamento Terra":         IMG_BASE + "Barbell_Deadlift/0.jpg",
+  "Pulldown com Triângulo":     IMG_BASE + "Seated_Cable_Rows/0.jpg",
+  // Ombros
+  "Desenvolvimento com Halteres": IMG_BASE + "Dumbbell_Shoulder_Press/0.jpg",
+  "Elevação Lateral com Halteres": IMG_BASE + "Side_Lateral_Raise/0.jpg",
+  "Desenvolvimento Arnold":     IMG_BASE + "Arnold_Dumbbell_Press/0.jpg",
+  "Elevação Frontal":           IMG_BASE + "Front_Dumbbell_Raise/0.jpg",
+  "Encolhimento (Shrug)":       IMG_BASE + "Dumbbell_Shrug/0.jpg",
+  // Bíceps
+  "Rosca Direta com Barra":     IMG_BASE + "Barbell_Curl/0.jpg",
+  "Rosca Alternada com Halteres": IMG_BASE + "Alternate_Hammer_Curl/0.jpg",
+  "Rosca Martelo":              IMG_BASE + "Hammer_Curls/0.jpg",
+  "Rosca Concentrada":          IMG_BASE + "Concentration_Curls/0.jpg",
+  // Tríceps
+  "Tríceps Pulley (Corda)":     IMG_BASE + "Triceps_Pushdown/0.jpg",
+  "Tríceps Testa com Barra EZ": IMG_BASE + "EZ-Bar_Skullcrusher/0.jpg",
+  "Extensão Overhead com Halter": IMG_BASE + "Dumbbell_One-Arm_Triceps_Extension/0.jpg",
+  "Mergulho no Banco":          IMG_BASE + "Bench_Dips/0.jpg",
+  // Abdômen
+  "Prancha Abdominal":          IMG_BASE + "Plank/0.jpg",
+  "Crunch Abdominal":           IMG_BASE + "Crunches/0.jpg",
+  "Russian Twist":              IMG_BASE + "Russian_Twist/0.jpg",
+  "Elevação de Pernas":         IMG_BASE + "Hanging_Leg_Raise/0.jpg",
+  "Abdominal Bicicleta":        IMG_BASE + "Cross-Body_Crunch/0.jpg",
+  // Quadríceps
+  "Agachamento Livre com Barra": IMG_BASE + "Barbell_Squat/0.jpg",
+  "Leg Press 45°":              IMG_BASE + "Leg_Press/0.jpg",
+  "Cadeira Extensora":          IMG_BASE + "Leg_Extensions/0.jpg",
+  "Avanço (Lunge)":             IMG_BASE + "Barbell_Lunge/0.jpg",
+  // Posterior
+  "Mesa Flexora":               IMG_BASE + "Lying_Leg_Curls/0.jpg",
+  "Stiff com Halteres":         IMG_BASE + "Romanian_Deadlift/0.jpg",
+  "Cadeira Flexora":            IMG_BASE + "Seated_Leg_Curl/0.jpg",
+  "RDL (Romanian Deadlift)":    IMG_BASE + "Romanian_Deadlift/0.jpg",
+  // Glúteos
+  "Hip Thrust com Barra":       IMG_BASE + "Barbell_Hip_Thrust/0.jpg",
+  "Agachamento Sumô":           IMG_BASE + "Sumo_Deadlift/0.jpg",
+  "Elevação Pélvica":           IMG_BASE + "Glute_Ham_Raise/0.jpg",
+  "Abdução de Quadril":         IMG_BASE + "Side_Lying_Hip_Abduction/0.jpg",
+  // Panturrilha
+  "Elevação de Calcanhares em Pé": IMG_BASE + "Standing_Calf_Raises/0.jpg",
+  "Elevação de Calcanhares Sentado": IMG_BASE + "Seated_Calf_Raise/0.jpg",
+  // Cardio
+  "HIIT na Esteira":            IMG_BASE + "Air_Bike/0.jpg",
+  "Corrida Leve (Steady State)": IMG_BASE + "Air_Bike/0.jpg",
+  "Pular Corda":                IMG_BASE + "Air_Bike/0.jpg",
+  // Alongamentos
+  "Isquiotibiais":              IMG_BASE + "Lying_Leg_Curls/0.jpg",
+  "Quadríceps":                 IMG_BASE + "Standing_Calf_Raises/0.jpg",
+  "Peitoral":                   IMG_BASE + "Dumbbell_Flyes/0.jpg",
+  "Gato-Vaca (Coluna)":         IMG_BASE + "Plank/0.jpg",
+};
+
+// Retorna imagem real para qualquer exercício pelo nome
+function getExImg(nome) {
+  if (!nome) return null;
+  // Busca exata
+  if (EX_IMGS[nome]) return EX_IMGS[nome];
+  // Busca parcial
+  const key = Object.keys(EX_IMGS).find(k =>
+    nome.toLowerCase().includes(k.toLowerCase()) ||
+    k.toLowerCase().includes(nome.toLowerCase())
+  );
+  return key ? EX_IMGS[key] : null;
+}
+
 // ─── PARSE DESCANSO ("60s","90s","2min","1:30") → segundos ───────────────────
 function parseDescanso(str=""){
   const s=str.trim().toLowerCase();
@@ -439,6 +518,19 @@ const Confirm = ({ msg, onYes, onNo }) => (
 );
 
 
+// ─── COMPONENTE DE IMAGEM DO EXERCÍCIO (real + fallback SVG) ─────────────────
+const ExImg = ({ nome, musculo, cor, style={} }) => {
+  const [imgOk, setImgOk] = useState(true);
+  const src = getExImg(nome);
+  if (src && imgOk) {
+    return (
+      <img src={src} alt={nome} onError={()=>setImgOk(false)}
+        style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", ...style }}/>
+    );
+  }
+  return <AnatomiaExercicio nome={nome} cor={cor||(GRUPOS_CORES[musculo]||T.yellow)}/>;
+};
+
 // ─── BIBLIOTECA DE EXERCÍCIOS ─────────────────────────────────────────────────
 const GRUPOS_CORES = {
   "Peito":"#E31B1B","Costas":"#9B59B6","Ombros":"#3498DB","Bíceps":"#27AE60",
@@ -839,7 +931,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           </div>
           <div style={{ padding:"16px 20px 40px" }}>
             <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:16, padding:12, background:T.bg2, borderRadius:12 }}>
-              <AnatomySVG grupo={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow} size={60}/>
+              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:60,height:60}}/></div>
               <div>
                 <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{exSel.nome}</p>
                 <YBadge text={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow}/>
@@ -875,7 +967,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           <div style={{ padding:"16px 20px 40px" }}>
             {/* Anatomy illustration */}
             <div style={{ display:"flex", gap:14, marginBottom:16 }}>
-              <AnatomySVG grupo={exSel.grupo} color={cor} size={80}/>
+              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:80,height:80}}/></div>
               <div style={{ flex:1 }}>
                 <YBadge text={exSel.grupo} color={cor}/>
                 <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
@@ -952,7 +1044,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
               return (
                 <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
                   <div style={{ position:"relative" }}>
-                    <AnatomySVG grupo={ex.grupo} color={cor} size="card"/>
+                    <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
                     <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
                   </div>
                   <div style={{ padding:"10px 10px 12px" }}>
@@ -1204,7 +1296,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {exList.map(ex=>(
                   <div key={ex.id} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, overflow:"hidden", display:"flex" }}>
-                    <div style={{ width:72, flexShrink:0 }}><ExIllust name={ex.nome} color={T.yellow} size="thumb"/></div>
+                    <div style={{ width:72, flexShrink:0 }}><ExImg nome={ex.nome} musculo={ex.musculo} style={{width:72,height:72}}/></div>
                     <div style={{ flex:1, padding:"10px 12px" }}>
                       <p style={{ margin:"0 0 3px", fontSize:14, fontWeight:700, color:T.text }}>{ex.nome}</p>
                       <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}x{ex.reps} · Descanso {ex.descanso}</p>
@@ -1389,7 +1481,7 @@ const BibliotecaAdmin = () => {
       <div>
         <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/>Biblioteca</button>
         <div style={{ display:"flex", gap:14, alignItems:"center", marginBottom:20, padding:14, background:T.bg2, borderRadius:14 }}>
-          <AnatomySVG grupo={exSel.grupo} color={cor} size={80}/>
+          <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:80,height:80}}/></div>
           <div style={{ flex:1 }}>
             <YBadge text={exSel.grupo} color={cor}/>
             <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
@@ -1457,7 +1549,7 @@ const BibliotecaAdmin = () => {
           return (
             <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${isCustom?T.yellow:T.border}`, cursor:"pointer" }}>
               <div style={{ position:"relative" }}>
-                <AnatomySVG grupo={ex.grupo} color={cor} size="card"/>
+                <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
                 <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={isCustom?"CUSTOM":ex.grupo} color={isCustom?T.yellow:cor}/></div>
               </div>
               <div style={{ padding:"10px 10px 12px" }}>
@@ -1808,7 +1900,7 @@ const AlunoApp = ({ aluno }) => {
           <div style={{ borderRadius:20, overflow:"hidden", marginBottom:20, position:"relative", height:190 }}>
             {exSel.img
               ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-              : <AnatomiaExercicio nome={exSel.nome} cor={GRUPOS_CORES[exSel.musculo]||T.yellow}/>
+              : <ExImg nome={exSel.nome} musculo={exSel.musculo} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
             }
             <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 55%)" }}/>
             <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
@@ -1875,7 +1967,7 @@ const AlunoApp = ({ aluno }) => {
                 return (
                   <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"33":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
                     <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
-                      {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <AnatomiaExercicio nome={ex.nome} cor={GRUPOS_CORES[ex.musculo]||T.yellow}/>}
+                      {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} style={{width:80,height:80}}/>}
                     </div>
                     <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
                       <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
