@@ -1017,22 +1017,35 @@ const initAlunos = [
 ];
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-const LoginScreen = ({ onLogin }) => {
+const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   const [login,setLogin]=useState("");
   const [senha,setSenha]=useState("");
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
+  const ADMIN_SENHA = "admin@123"; // senha local do admin
+
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
     setLoading(true); setErr("");
-    try {
-      if(login.trim()==="admin"){
-        await signInWithEmailAndPassword(fbAuth,"admin@imperio.app",senha);
+
+    // ── Login admin local (sem Firebase Auth) ──────────────────────────────
+    if(login.trim()==="admin"){
+      if(senha === ADMIN_SENHA){
+        // Seta auth direto no estado — bypassa Firebase Auth
+        setAuthAdmin();
       } else {
-        const cpf = login.replace(/\D/g,"");
-        await signInWithEmailAndPassword(fbAuth,`${cpf}@imperio.app`,senha);
+        setErr("Senha do admin incorreta.");
       }
+      setLoading(false);
+      return;
+    }
+
+    // ── Login aluno via Firebase Auth ──────────────────────────────────────
+    try {
+      const cpf = login.replace(/\D/g,"");
+      await signInWithEmailAndPassword(fbAuth,`${cpf}@imperio.app`,senha);
+      // onAuthStateChanged cuida do resto
     } catch(e) {
       const msgs = {
         "auth/invalid-credential":"CPF ou senha incorretos.",
@@ -2741,17 +2754,30 @@ export default function App() {
 
   // ── Auth state listener ──────────────────────────────────────────────────
   useEffect(() => {
+    // Check if admin is already logged in locally
+    const localAdmin = sessionStorage.getItem("imperio_admin");
+    if (localAdmin === "true") {
+      setAuth({ role:"admin" });
+      setCarregando(false);
+    }
+
     const unsub = onAuthStateChanged(fbAuth, async (user) => {
+      // Se admin local já está setado, ignora Firebase
+      if (sessionStorage.getItem("imperio_admin") === "true") {
+        setCarregando(false);
+        return;
+      }
+
       if (!user) { setAuth(null); setCarregando(false); return; }
 
-      // Admin fixo por email
+      // Admin via Firebase Auth (legado)
       if (user.email === "admin@imperio.app") {
         setAuth({ role:"admin", uid:user.uid });
         setCarregando(false);
         return;
       }
 
-      // Aluno: busca dados no Firestore pelo UID ou CPF
+      // Aluno: busca dados no Firestore
       const cpf = user.email.replace("@imperio.app","");
       const snap = await getDoc(doc(db,"alunos",cpf));
       if (snap.exists()) {
@@ -2799,8 +2825,15 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem("imperio_admin");
     await signOut(fbAuth);
     setAuth(null);
+  };
+
+  // Seta admin local sem Firebase Auth
+  const setAuthAdmin = () => {
+    sessionStorage.setItem("imperio_admin","true");
+    setAuth({ role:"admin" });
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -2814,7 +2847,7 @@ export default function App() {
     </div>
   );
 
-  if (!auth) return <LoginScreen onLogin={handleLogin} />;
+  if (!auth) return <LoginScreen onLogin={handleLogin} setAuthAdmin={setAuthAdmin} />;
 
   if (auth.role === "admin") return (
     <AdminPanel
