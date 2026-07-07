@@ -2120,6 +2120,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
     {id:"nutricao",icon:"leaf",label:"Nutrição"},
     {id:"cardapio",icon:"heart",label:"Cardápio"},
     {id:"perfil",icon:"user",label:"Perfil"},
+    {id:"sair",icon:"logout",label:"Sair"},
   ];
   const SIDE_MENU=[
     {icon:"home",label:"Início",tab:"inicio"},
@@ -2571,26 +2572,40 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
               <span style={{ fontSize:14, color:tab===it.tab?T.text:T.text2, fontWeight:tab===it.tab?700:400 }}>{it.label}</span>
             </div>
           ))}
+          {/* Botão Sair no menu lateral */}
+          <div onClick={onLogout} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px", cursor:"pointer", borderLeft:"3px solid transparent", marginTop:8, borderTop:`1px solid ${T.border}` }}>
+            <Ic n="logout" size={18} color={T.red}/>
+            <span style={{ fontSize:14, color:T.red, fontWeight:600 }}>Sair</span>
+          </div>
         </div>
       </div>
       {/* Header */}
       <div style={{ position:"sticky", top:0, zIndex:30, background:"#0A0A0AEE", backdropFilter:"blur(14px)", borderBottom:`1px solid ${T.border}`, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <button onClick={()=>setMenuOpen(!menuOpen)} style={{ background:"none", border:"none", cursor:"pointer", padding:0 }}><Ic n={menuOpen?"x":"menu"} size={22} color={T.text}/></button>
         <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{TAB_TITLES[tab]||"IMPÉRIO"}</span>
-        <button style={{ background:"none", border:"none", cursor:"pointer", padding:0, position:"relative" }}><Ic n="bell" size={22} color={T.text}/><span style={{ position:"absolute", top:-2, right:-2, width:8, height:8, background:T.red, borderRadius:50, border:`2px solid ${T.bg}` }}/></button>
+        <button onClick={onLogout} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:8, padding:"5px 12px", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:12 }}>
+          <Ic n="logout" size={14} color={T.text3}/>
+          Sair
+        </button>
       </div>
       {/* Content */}
-      <div style={{ padding:"20px 16px 100px" }}>{renderTab()}</div>
+      <div style={{ padding:"20px 16px 140px" }}>{renderTab()}</div>
       {/* Bottom Nav */}
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"#0D0D00EE", borderTop:`1px solid ${T.yellow}22`, display:"flex", padding:"8px 0 16px", zIndex:30, backdropFilter:"blur(14px)" }}>
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, background:"#0D0D00EE", borderTop:`1px solid ${T.yellow}22`, display:"flex", padding:"8px 0 calc(16px + env(safe-area-inset-bottom))", zIndex:30, backdropFilter:"blur(14px)" }}>
         {BOT_NAV.map(it=>{
-          const active=tab===it.id;
+          const active = tab===it.id;
+          const isSair = it.id==="sair";
           return (
-            <button key={it.id} onClick={()=>setTab(it.id)} style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"4px 0" }}>
-              <div style={{ width:active?34:26, height:active?34:26, borderRadius:active?10:50, background:active?T.gold:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s", boxShadow:active?`0 4px 14px ${T.yellow}55`:"none" }}>
-                <Ic n={it.icon} size={16} color={active?T.bg:T.text3}/>
+            <button key={it.id}
+              onClick={()=> isSair ? onLogout() : setTab(it.id)}
+              style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"4px 0" }}>
+              <div style={{ width:active?34:26, height:active?34:26, borderRadius:active?10:50, background:isSair?"transparent":active?T.gold:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s", boxShadow:active&&!isSair?`0 4px 14px ${T.yellow}55`:"none" }}>
+                <Ic n={it.icon} size={16} color={isSair?T.red:active?T.bg:T.text3}/>
               </div>
-              <span style={{ fontSize:10, color:active?T.yellow:T.text3, fontWeight:active?800:400 }}>{it.label}</span>
+              <span style={{ fontSize:10, color:isSair?T.red:active?T.yellow:T.text3, fontWeight:isSair?700:active?800:400 }}>{it.label}</span>
+            </button>
+          );
+        })}
             </button>
           );
         })}
