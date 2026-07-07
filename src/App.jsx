@@ -2558,25 +2558,25 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
     <div style={{ maxWidth:430, margin:"0 auto", background:T.bg, minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative" }}>
       {menuOpen && <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"#000C", zIndex:40, maxWidth:430, margin:"0 auto" }}/>}
       {/* Sidebar */}
-      <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto" }}>
+      <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
         <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"32px 20px 20px", borderBottom:`1px solid ${T.yellow}22` }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>💪</div>
             <div><p style={{ margin:0, fontSize:15, fontWeight:900, color:T.text }}>{aluno.nome}</p><YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/></div>
           </div>
         </div>
-        <div style={{ padding:"10px 0" }}>
+        <div style={{ padding:"10px 0", flex:1 }}>
           {SIDE_MENU.map(it=>(
             <div key={it.label} onClick={()=>{setTab(it.tab);setMenuOpen(false);}} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px", cursor:"pointer", borderLeft:tab===it.tab?`3px solid ${T.yellow}`:"3px solid transparent", background:tab===it.tab?`${T.yellow}08`:"transparent" }}>
               <Ic n={it.icon} size={18} color={tab===it.tab?T.yellow:T.text3}/>
               <span style={{ fontSize:14, color:tab===it.tab?T.text:T.text2, fontWeight:tab===it.tab?700:400 }}>{it.label}</span>
             </div>
           ))}
-          {/* Botão Sair no menu lateral */}
-          <div onClick={onLogout} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px", cursor:"pointer", borderLeft:"3px solid transparent", marginTop:8, borderTop:`1px solid ${T.border}` }}>
-            <Ic n="logout" size={18} color={T.red}/>
-            <span style={{ fontSize:14, color:T.red, fontWeight:600 }}>Sair</span>
-          </div>
+        </div>
+        {/* Sair — sempre visível no fundo do menu */}
+        <div onClick={onLogout} style={{ display:"flex", alignItems:"center", gap:14, padding:"18px 20px", cursor:"pointer", borderTop:`1px solid ${T.red}22`, background:"#1A0000", marginBottom:"env(safe-area-inset-bottom)" }}>
+          <Ic n="logout" size={20} color={T.red}/>
+          <span style={{ fontSize:15, color:T.red, fontWeight:700 }}>Sair da conta</span>
         </div>
       </div>
       {/* Header */}
