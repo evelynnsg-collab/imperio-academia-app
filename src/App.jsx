@@ -1992,7 +1992,9 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"20px 16px 0", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:40 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div><p style={{ margin:0, color:T.yellow, fontSize:11, fontWeight:700, letterSpacing:1 }}>PAINEL ADMIN</p><h1 style={{ margin:"2px 0 0", fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</h1></div>
-          <button onClick={onLogout} style={{ background:"transparent", border:`1px solid ${T.border}`, borderRadius:8, padding:"8px 12px", color:T.text3, fontSize:12, cursor:"pointer" }}>Sair</button>
+          <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"8px 16px", color:T.red, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            <Ic n="logout" size={14} color={T.red}/>Sair
+          </button>
         </div>
         <div style={{ display:"flex", gap:6, paddingBottom:1 }}>
           {ADMIN_TABS.map(t=>(
@@ -2583,8 +2585,8 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
       <div style={{ position:"sticky", top:0, zIndex:30, background:"#0A0A0AEE", backdropFilter:"blur(14px)", borderBottom:`1px solid ${T.border}`, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <button onClick={()=>setMenuOpen(!menuOpen)} style={{ background:"none", border:"none", cursor:"pointer", padding:0 }}><Ic n={menuOpen?"x":"menu"} size={22} color={T.text}/></button>
         <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{TAB_TITLES[tab]||"IMPÉRIO"}</span>
-        <button onClick={onLogout} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:8, padding:"5px 12px", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:12 }}>
-          <Ic n="logout" size={14} color={T.text3}/>
+        <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"7px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.red, fontSize:13, fontWeight:700 }}>
+          <Ic n="logout" size={14} color={T.red}/>
           Sair
         </button>
       </div>
