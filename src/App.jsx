@@ -1034,8 +1034,8 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
   };
 
   const TABS=[
-    {id:"info",l:"📋 Dados"},
-    {id:"treinos",l:"🏋️ Treinos"},
+    {id:"info",    l:"📋 Dados"},
+    {id:"treinos", l:"🏋️ Treinos"},
     {id:"cardapio",l:"🥗 Cardápio"},
     {id:"evolucao",l:"📈 Evolução"},
   ];
@@ -1057,19 +1057,32 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
       {/* Header */}
       <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"16px 16px 0", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:50 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}><Ic n="back" size={18} color={T.text3}/> Alunos</button>
+          <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}>
+            <Ic n="back" size={18} color={T.text3}/> Alunos
+          </button>
           <div style={{ display:"flex", gap:8 }}>
-            <Btn small onClick={()=>setShowConfirm(true)} danger><Ic n="trash" size={13} color={T.text}/>Excluir</Btn>
-            <Btn small onClick={salvarTudo} color={T.green} style={{ color:T.text }}>{saved?"✓ Salvo!":"💾 Salvar"}</Btn>
+            <button onClick={()=>setShowConfirm(true)} style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:8, padding:"7px 12px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+              <Ic n="trash" size={12} color={T.red}/>Excluir
+            </button>
+            <button onClick={salvarTudo} style={{ background:saved?T.greenDim:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:saved?T.green:T.bg, fontSize:13, fontWeight:900, cursor:"pointer", transition:"all .2s" }}>
+              {saved ? "✓ Salvo!" : "💾 Salvar"}
+            </button>
           </div>
         </div>
-        <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:12 }}>
+
+        {/* Info aluno */}
+        <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
           <div style={{ width:44, height:44, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>👤</div>
-          <div><p style={{ margin:0, fontSize:17, fontWeight:900, color:T.text }}>{dados.nome}</p><p style={{ margin:0, fontSize:12, color:T.text3 }}>CPF: {dados.cpf}</p></div>
+          <div style={{ flex:1 }}>
+            <p style={{ margin:0, fontSize:17, fontWeight:900, color:T.text }}>{dados.nome}</p>
+            <p style={{ margin:"2px 0 0", fontSize:12, color:T.text3 }}>CPF: {dados.cpf} · {dados.plano} · <span style={{ color:dados.status==="Ativo"?T.green:T.red }}>{dados.status}</span></p>
+          </div>
         </div>
-        <div style={{ display:"flex", gap:6 }}>
+
+        {/* Tabs */}
+        <div style={{ display:"flex", gap:4 }}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, background:tab===t.id?T.gold:"transparent", border:`1px solid ${tab===t.id?T.yellow:T.border}`, borderRadius:"10px 10px 0 0", padding:"8px 4px", color:tab===t.id?T.bg:T.text3, fontSize:12, fontWeight:700, cursor:"pointer" }}>{t.l}</button>
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, background:tab===t.id?T.gold:"transparent", border:`1px solid ${tab===t.id?T.yellow:T.border}`, borderRadius:"10px 10px 0 0", padding:"8px 2px", color:tab===t.id?T.bg:T.text3, fontSize:11, fontWeight:700, cursor:"pointer" }}>{t.l}</button>
           ))}
         </div>
       </div>
@@ -1137,9 +1150,18 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
             </div>
 
             {exList.length===0 ? (
-              <div style={{ textAlign:"center", padding:"40px 0", color:T.text3 }}>
-                <p style={{ fontSize:32, marginBottom:12 }}>🏋️</p>
-                <p>Nenhum exercício nesta ficha. Clique em Adicionar.</p>
+              <div style={{ textAlign:"center", padding:"40px 16px", color:T.text3 }}>
+                <p style={{ fontSize:44, marginBottom:12 }}>🏋️</p>
+                <p style={{ fontSize:16, fontWeight:700, color:T.text, marginBottom:6 }}>Nenhum exercício nesta ficha</p>
+                <p style={{ fontSize:13, marginBottom:24 }}>Adicione exercícios da biblioteca ou crie manualmente</p>
+                <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
+                  <button onClick={()=>setShowBiblioteca(true)} style={{ background:T.gold, border:"none", borderRadius:12, padding:"12px 20px", color:T.bg, fontSize:14, fontWeight:800, cursor:"pointer" }}>
+                    📚 Biblioteca
+                  </button>
+                  <button onClick={()=>setEditEx({id:0,nome:"",series:"3",reps:"12",descanso:"60s",obs:"",img:"",video:"",musculo:""})} style={{ background:T.card2, border:`1px solid ${T.border}`, borderRadius:12, padding:"12px 20px", color:T.text, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                    ✏️ Manual
+                  </button>
+                </div>
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -1165,27 +1187,50 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
         {/* ── ABA CARDÁPIO ── */}
         {tab==="cardapio" && (
           <div>
+            {/* Total kcal do dia */}
+            {(() => {
+              const totalKcal = refeicoes.reduce((acc,ref) => {
+                const r = getRef(ref);
+                return acc + (r.alimentos||[]).reduce((a,it)=>a+(parseFloat(it.kcal)||0),0);
+              }, 0);
+              return totalKcal > 0 ? (
+                <div style={{ background:"linear-gradient(135deg,#0A1A08,#0A0A0A)", border:`1px solid ${T.green}44`, borderRadius:14, padding:"14px 16px", marginBottom:14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <p style={{ margin:0, fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8 }}>TOTAL DO DIA</p>
+                    <p style={{ margin:"4px 0 0", fontSize:22, fontWeight:900, color:T.green }}>{totalKcal} <span style={{ fontSize:13, fontWeight:400 }}>kcal</span></p>
+                  </div>
+                  <div style={{ fontSize:32 }}>🥗</div>
+                </div>
+              ) : null;
+            })()}
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               {refeicoes.map((ref,i)=>{
                 const r=getRef(ref);
                 const kcal=(r.alimentos||[]).reduce((a,it)=>a+(parseFloat(it.kcal)||0),0);
+                const hasFood = (r.alimentos||[]).length > 0;
                 return (
-                  <div key={ref} onClick={()=>setRefSel(ref)} style={{ background:T.card, borderRadius:14, border:`1px solid ${(r.alimentos||[]).length>0?T.green+"44":T.border}`, padding:"13px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:38, height:38, borderRadius:10, background:(r.alimentos||[]).length>0?T.greenDim:T.yellowDim, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>
+                  <div key={ref} onClick={()=>setRefSel(ref)} style={{ background:T.card, borderRadius:14, border:`1px solid ${hasFood?T.green+"44":T.border}`, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ width:42, height:42, borderRadius:12, background:hasFood?T.greenDim:T.yellowDim, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
                       {["☀️","🍎","🍽️","🥝","🌙","⭐"][i]}
                     </div>
                     <div style={{ flex:1 }}>
                       <p style={{ margin:0, fontSize:14, fontWeight:700, color:T.text }}>{ref}</p>
-                      <p style={{ margin:"3px 0 0", color:T.text3, fontSize:12 }}>
-                        {r.horario && <span>{r.horario} · </span>}
-                        {(r.alimentos||[]).length>0 ? `${(r.alimentos||[]).length} alimentos · ${kcal>0?kcal+" kcal":""}` : "Sem alimentos"}
+                      <p style={{ margin:"3px 0 0", color:hasFood?T.green:T.text3, fontSize:12 }}>
+                        {r.horario && <span style={{ color:T.text3 }}>{r.horario} · </span>}
+                        {hasFood ? `${(r.alimentos||[]).length} alimentos · ${kcal} kcal` : "Toque para adicionar alimentos"}
                       </p>
                     </div>
-                    <Ic n="edit" size={16} color={T.text3}/>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      {hasFood && <span style={{ background:T.greenDim, color:T.green, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:700 }}>{kcal}kcal</span>}
+                      <Ic n="edit" size={16} color={T.text3}/>
+                    </div>
                   </div>
                 );
               })}
             </div>
+            <p style={{ textAlign:"center", color:T.text3, fontSize:12, marginTop:16 }}>
+              Toque em qualquer refeição para adicionar ou editar alimentos
+            </p>
           </div>
         )}
 
