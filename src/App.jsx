@@ -2609,9 +2609,6 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
             </button>
           );
         })}
-            </button>
-          );
-        })}
       </div>
       {/* WhatsApp FAB */}
       <a href="https://wa.me/5511999999999?text=Olá, preciso de ajuda pelo app da academia." target="_blank" rel="noopener noreferrer" style={{ position:"fixed", bottom:90, right:"max(20px,calc(50vw - 195px))", width:52, height:52, borderRadius:50, background:"linear-gradient(135deg,#25D366,#128C7E)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 20px #25D36688", zIndex:35, textDecoration:"none" }}>
