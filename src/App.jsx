@@ -2004,8 +2004,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     setAddLoading(false);
   };
 
-  const ADMIN_TABS=[{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
-  const [subTab,setSubTab]=useState("biblioteca");
+  const ADMIN_TABS=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const [subTab,setSubTab]=useState("cadastros");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -2051,43 +2051,70 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       </div>
 
       <div style={{ padding:"16px 16px 80px" }}>
-        {/* ── ALUNOS ── */}
-        {subTab==="alunos" && (
+
+        {/* ── CADASTROS ── */}
+        {subTab==="cadastros" && (
           <div>
+            {/* Busca + Novo */}
             <div style={{ display:"flex", gap:10, marginBottom:14 }}>
               <div style={{ position:"relative", flex:1 }}>
                 <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={16} color={T.text3}/></div>
-                <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por nome, CPF ou objetivo..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:12, padding:"12px 12px 12px 40px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por nome ou CPF..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:12, padding:"12px 12px 12px 40px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
               </div>
-              <Btn onClick={()=>setShowAdd(true)} style={{ flexShrink:0, color:T.bg }}><Ic n="plus" size={16} color={T.bg}/>Novo</Btn>
+              <button onClick={()=>setShowAdd(true)} style={{ flexShrink:0, background:T.gold, border:"none", borderRadius:12, padding:"0 18px", color:T.bg, fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                <Ic n="plus" size={16} color={T.bg}/> Novo
+              </button>
             </div>
 
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-              <span style={{ color:T.text3, fontSize:13 }}>{filtrados.length} aluno{filtrados.length!==1?"s":""}</span>
-              <div style={{ display:"flex", gap:8 }}>
-                <YBadge text={`${alunos.filter(a=>a.status==="Ativo").length} ativos`} color={T.green}/>
-                <YBadge text={`${alunos.filter(a=>a.status==="Pendente").length} pendentes`} color={T.yellow}/>
+            {/* Stats */}
+            <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+              <div style={{ flex:1, background:T.card2, borderRadius:12, padding:"10px 14px", border:`1px solid ${T.green}33` }}>
+                <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.green }}>{alunos.filter(a=>a.status==="Ativo").length}</p>
+                <p style={{ margin:0, fontSize:11, color:T.text3 }}>Ativos</p>
+              </div>
+              <div style={{ flex:1, background:T.card2, borderRadius:12, padding:"10px 14px", border:`1px solid ${T.yellow}33` }}>
+                <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.yellow }}>{alunos.filter(a=>a.status==="Pendente").length}</p>
+                <p style={{ margin:0, fontSize:11, color:T.text3 }}>Pendentes</p>
+              </div>
+              <div style={{ flex:1, background:T.card2, borderRadius:12, padding:"10px 14px", border:`1px solid ${T.border}` }}>
+                <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.text }}>{alunos.length}</p>
+                <p style={{ margin:0, fontSize:11, color:T.text3 }}>Total</p>
               </div>
             </div>
 
+            {/* Lista de alunos */}
             {filtrados.length===0 ? (
-              <div style={{ textAlign:"center", paddingTop:40, color:T.text3 }}>
-                <p style={{ fontSize:40, marginBottom:12 }}>🔍</p>
-                <p>Nenhum aluno encontrado</p>
+              <div style={{ textAlign:"center", paddingTop:48, color:T.text3 }}>
+                <p style={{ fontSize:48, marginBottom:12 }}>👥</p>
+                <p style={{ fontSize:16, fontWeight:700, color:T.text, marginBottom:6 }}>Nenhum aluno cadastrado</p>
+                <p style={{ fontSize:13, marginBottom:24 }}>Toque em "+ Novo" para cadastrar o primeiro aluno</p>
+                <button onClick={()=>setShowAdd(true)} style={{ background:T.gold, border:"none", borderRadius:12, padding:"14px 28px", color:T.bg, fontSize:15, fontWeight:900, cursor:"pointer" }}>
+                  + Cadastrar primeiro aluno
+                </button>
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {filtrados.map(a=>(
-                  <div key={a.id} onClick={()=>setAlunoSel(a)} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14 }}>
-                    <div style={{ width:46, height:46, borderRadius:50, background:`linear-gradient(135deg,${T.yellow}44,${T.yellow}22)`, border:`2px solid ${T.yellow}55`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>👤</div>
+                  <div key={a.id} onClick={()=>setAlunoSel(a)}
+                    style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, transition:"border-color .2s" }}>
+                    {/* Avatar */}
+                    <div style={{ width:50, height:50, borderRadius:50, background:`linear-gradient(135deg,${T.yellow}44,${T.yellow}22)`, border:`2px solid ${T.yellow}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>👤</div>
+                    {/* Info */}
                     <div style={{ flex:1, minWidth:0 }}>
                       <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{a.nome}</p>
                       <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>CPF: {a.cpf}</p>
-                      <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{a.objetivo||"Sem objetivo definido"} · {a.plano}</p>
+                      <div style={{ display:"flex", gap:6, marginTop:4, flexWrap:"wrap" }}>
+                        <span style={{ background:T.yellowDim, color:T.yellow, borderRadius:20, padding:"2px 8px", fontSize:10, fontWeight:700 }}>{a.plano||"Basic"}</span>
+                        {a.objetivo && <span style={{ color:T.text3, fontSize:11 }}>{a.objetivo}</span>}
+                      </div>
                     </div>
+                    {/* Status + seta */}
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
-                      <YBadge text={a.status} color={a.status==="Ativo"?T.green:a.status==="Pendente"?T.yellow:T.red}/>
-                      <Ic n="chevR" size={16} color={T.text3}/>
+                      <span style={{ background:a.status==="Ativo"?T.greenDim:a.status==="Pendente"?T.yellowDim:T.redDim, color:a.status==="Ativo"?T.green:a.status==="Pendente"?T.yellow:T.red, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>{a.status||"Ativo"}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                        <span style={{ fontSize:10, color:T.text3 }}>Treino · Cardápio</span>
+                        <Ic n="chevR" size={14} color={T.text3}/>
+                      </div>
                     </div>
                   </div>
                 ))}
