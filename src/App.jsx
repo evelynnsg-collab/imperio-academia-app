@@ -1963,7 +1963,7 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout }) => {
-  const [subTab,setSubTab]=useState("alunos");
+  const [subTab,setSubTab]=useState("biblioteca");
   const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -2004,7 +2004,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     setAddLoading(false);
   };
 
-  const ADMIN_TABS=[{id:"alunos",l:"👥 Alunos"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const ADMIN_TABS=[{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const [subTab,setSubTab]=useState("biblioteca");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
