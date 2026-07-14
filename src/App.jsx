@@ -1037,13 +1037,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const TABS_ALL=[
     {id:"info",    l:"📋 Dados"},
     {id:"treinos", l:"🏋️ Treinos"},
-    {id:"cardapio",l:"🥗 Cardápio"},
     {id:"evolucao",l:"📈 Evolução"},
   ];
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
-    : TABS_ALL.filter(t => t.id !== "cardapio"); // admin: sem cardápio
-  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
+    : TABS_ALL;
+  const [tab,setTab]=useState("info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
