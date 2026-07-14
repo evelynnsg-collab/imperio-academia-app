@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp, query, orderBy } from "firebase/firestore";
 
@@ -20,6 +20,13 @@ const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const db     = getFirestore(fbApp);
 const storage = getStorage(fbApp);
+
+// Usa uma instância separada do Firebase Auth para criar contas de alunos.
+// Assim, o administrador não é desconectado quando uma nova conta é criada.
+const studentCreatorApp = getApps().some(app => app.name === "studentAccountCreator")
+  ? getApp("studentAccountCreator")
+  : initializeApp(firebaseConfig, "studentAccountCreator");
+const studentCreatorAuth = getAuth(studentCreatorApp);
 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 // Salva aluno no Firestore
@@ -41,9 +48,14 @@ async function deletarAluno(id) {
 async function criarContaAluno(cpf, senha) {
   const email = `${cpf}@imperio.app`;
   try {
-    await createUserWithEmailAndPassword(fbAuth, email, senha || cpf);
-  } catch(e) {
+    await createUserWithEmailAndPassword(studentCreatorAuth, email, senha || cpf);
+  } catch (e) {
     if (e.code !== "auth/email-already-in-use") throw e;
+  } finally {
+    // Garante que a sessão auxiliar nunca permaneça conectada.
+    if (studentCreatorAuth.currentUser) {
+      await signOut(studentCreatorAuth);
+    }
   }
 }
 
@@ -2075,19 +2087,21 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
 
   const addAluno= async ()=>{
     if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
-    setAddLoading(true); setAddErr("");
+    setAddLoading(true);
+    setAddErr("");
     try {
       const alunoCompleto={...newAluno, id:newAluno.cpf, senha:newAluno.senha||newAluno.cpf,
         treinos:{"Treino A":[]}, cardapio:{}, fotos:[], avaliacoes:[], chat:[], notificacoes:[], agenda:[],
         since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"})
       };
       await onAddAluno(alunoCompleto);
-      setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic"});
+      setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",treinos:{"Treino A":[]},cardapio:{}});
       setShowAdd(false);
     } catch(e) {
       setAddErr("Erro ao cadastrar: "+e.message);
+    } finally {
+      setAddLoading(false);
     }
-    setAddLoading(false);
   };
 
   const ADMIN_TABS=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
