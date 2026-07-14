@@ -2054,6 +2054,9 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
   const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
+  // Hooks precisam ser executados sempre na mesma ordem, antes de qualquer return condicional.
+  const [addLoading,setAddLoading]=useState(false);
+  const [addErr,setAddErr]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2065,13 +2068,10 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   );
 
   const filtrados=alunos.filter(a=>
-    a.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    a.cpf.includes(busca) ||
+    (a.nome||"").toLowerCase().includes(busca.toLowerCase()) ||
+    (a.cpf||"").includes(busca) ||
     (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
   );
-
-  const [addLoading,setAddLoading]=useState(false);
-  const [addErr,setAddErr]=useState("");
 
   const addAluno= async ()=>{
     if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
