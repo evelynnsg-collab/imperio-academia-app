@@ -917,29 +917,31 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const ADMIN_SENHA = "admin@123"; // senha local do admin
+  const ADMIN_SENHA = "admin@123";
+  const NUTRI_SENHA = "nutri@123";
 
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
     setLoading(true); setErr("");
 
-    // ── Login admin local (sem Firebase Auth) ──────────────────────────────
+    // ── Login admin local ───────────────────────────────────────────────────
     if(login.trim()==="admin"){
-      if(senha === ADMIN_SENHA){
-        // Seta auth direto no estado — bypassa Firebase Auth
-        setAuthAdmin();
-      } else {
-        setErr("Senha do admin incorreta.");
-      }
-      setLoading(false);
-      return;
+      if(senha === ADMIN_SENHA){ setAuthAdmin("admin"); }
+      else { setErr("Senha do admin incorreta."); }
+      setLoading(false); return;
+    }
+
+    // ── Login nutricionista local ───────────────────────────────────────────
+    if(login.trim()==="nutri"){
+      if(senha === NUTRI_SENHA){ setAuthAdmin("nutri"); }
+      else { setErr("Senha da nutricionista incorreta."); }
+      setLoading(false); return;
     }
 
     // ── Login aluno via Firebase Auth ──────────────────────────────────────
     try {
       const cpf = login.replace(/\D/g,"");
       await signInWithEmailAndPassword(fbAuth,`${cpf}@imperio.app`,senha);
-      // onAuthStateChanged cuida do resto
     } catch(e) {
       const msgs = {
         "auth/invalid-credential":"CPF ou senha incorretos.",
@@ -968,15 +970,14 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
             {loading?"Entrando...":"ENTRAR"}
           </button>
         </div>
-        <p style={{textAlign:"center",color:T.text3,fontSize:12,marginTop:20}}>Admin: admin + sua senha · Aluno: CPF + senha CPF</p>
+        <p style={{textAlign:"center",color:T.text3,fontSize:12,marginTop:20}}>Admin: admin · Nutricionista: nutri · Aluno: CPF</p>
       </div>
     </div>
   );
 };
 
 // ─── ADMIN: ALUNO DETALHE ─────────────────────────────────────────────────────
-const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
-  const [tab,setTab]=useState("info");
+const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => {
   const [dados,setDados]=useState({...aluno});
   const [treinos,setTreinos]=useState(aluno.treinos||{});
   const [cardapio,setCardapio]=useState(aluno.cardapio||{});
@@ -1033,12 +1034,16 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete }) => {
     saveRef(ref,{...r,alimentos:(r.alimentos||[]).filter(a=>a.id!==id)});
   };
 
-  const TABS=[
+  const TABS_ALL=[
     {id:"info",    l:"📋 Dados"},
     {id:"treinos", l:"🏋️ Treinos"},
     {id:"cardapio",l:"🥗 Cardápio"},
     {id:"evolucao",l:"📈 Evolução"},
   ];
+  const TABS = soCardapio
+    ? [{id:"cardapio",l:"🥗 Cardápio"}]
+    : TABS_ALL.filter(t => t.id !== "cardapio"); // admin: sem cardápio
+  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -1961,6 +1966,89 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
   );
 };
 
+// ─── NUTRI PANEL ──────────────────────────────────────────────────────────────
+const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
+  const [alunoSel, setAlunoSel] = useState(null);
+  const [busca, setBusca] = useState("");
+
+  const filtrados = alunos.filter(a =>
+    !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca)
+  );
+
+  if (alunoSel) return (
+    <AlunoDetalhe
+      aluno={alunoSel}
+      soCardapio={true}
+      onBack={() => setAlunoSel(null)}
+      onSave={async(updated) => { await onUpdateAluno({...updated, id: alunoSel.id}); setAlunoSel({...updated, id: alunoSel.id}); }}
+      onDelete={() => {}}
+    />
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
+      {/* Header */}
+      <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, padding:"16px 20px", borderBottom:`1px solid ${T.green}33`, position:"sticky", top:0, zIndex:30 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <p style={{ margin:0, fontSize:11, color:T.green, fontWeight:700, letterSpacing:1 }}>PAINEL NUTRICIONISTA</p>
+            <p style={{ margin:0, fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</p>
+          </div>
+          <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"7px 14px", color:T.red, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            <Ic n="logout" size={14} color={T.red}/>Sair
+          </button>
+        </div>
+      </div>
+
+      <div style={{ padding:16 }}>
+        {/* Busca */}
+        <div style={{ position:"relative", marginBottom:16 }}>
+          <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={16} color={T.text3}/></div>
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar aluno por nome ou CPF..."
+            style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.green:T.border}`, borderRadius:12, padding:"12px 12px 12px 40px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+        </div>
+
+        {/* Info */}
+        <div style={{ background:T.greenDim, border:`1px solid ${T.green}33`, borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", gap:10, alignItems:"center" }}>
+          <span style={{ fontSize:24 }}>🥗</span>
+          <div>
+            <p style={{ margin:0, fontSize:13, fontWeight:700, color:T.green }}>Modo Nutricionista</p>
+            <p style={{ margin:0, fontSize:12, color:T.text3 }}>Acesso exclusivo ao cardápio de cada aluno</p>
+          </div>
+        </div>
+
+        {/* Lista alunos */}
+        <p style={{ color:T.text3, fontSize:12, marginBottom:10 }}>{filtrados.length} aluno{filtrados.length!==1?"s":""} · toque para editar cardápio</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {filtrados.map(a => (
+            <div key={a.id} onClick={() => setAlunoSel(a)}
+              style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ width:46, height:46, borderRadius:50, background:T.greenDim, border:`2px solid ${T.green}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>👤</div>
+              <div style={{ flex:1 }}>
+                <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{a.nome}</p>
+                <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>CPF: {a.cpf}</p>
+                <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{a.objetivo||"Sem objetivo"} · {a.plano}</p>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+                <span style={{ background:T.greenDim, color:T.green, borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:700 }}>
+                  {(a.cardapio && Object.values(a.cardapio).some(r => r.alimentos?.length > 0)) ? "✓ Cardápio" : "Sem cardápio"}
+                </span>
+                <Ic n="chevR" size={16} color={T.text3}/>
+              </div>
+            </div>
+          ))}
+          {filtrados.length === 0 && (
+            <div style={{ textAlign:"center", padding:40, color:T.text3 }}>
+              <p style={{ fontSize:40 }}>🔍</p>
+              <p>Nenhum aluno encontrado</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout }) => {
   const [subTab,setSubTab]=useState("cadastros");  const [busca,setBusca]=useState("");
@@ -2734,15 +2822,14 @@ export default function App() {
   // ── Auth state listener ──────────────────────────────────────────────────
   useEffect(() => {
     // Check if admin is already logged in locally
-    const localAdmin = sessionStorage.getItem("imperio_admin");
-    if (localAdmin === "true") {
-      setAuth({ role:"admin" });
+    const localRole = sessionStorage.getItem("imperio_admin");
+    if (localRole === "admin" || localRole === "nutri") {
+      setAuth({ role: localRole });
       setCarregando(false);
     }
 
     const unsub = onAuthStateChanged(fbAuth, async (user) => {
-      // Se admin local já está setado, ignora Firebase
-      if (sessionStorage.getItem("imperio_admin") === "true") {
+      if (sessionStorage.getItem("imperio_admin")) {
         setCarregando(false);
         return;
       }
@@ -2809,10 +2896,10 @@ export default function App() {
     setAuth(null);
   };
 
-  // Seta admin local sem Firebase Auth
-  const setAuthAdmin = () => {
-    sessionStorage.setItem("imperio_admin","true");
-    setAuth({ role:"admin" });
+  // Seta admin/nutri local sem Firebase Auth
+  const setAuthAdmin = (role="admin") => {
+    sessionStorage.setItem("imperio_admin", role);
+    setAuth({ role });
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -2835,6 +2922,14 @@ export default function App() {
       onAddAluno={addAluno}
       onUpdateAluno={updateAluno}
       onDeleteAluno={removerAluno}
+      onLogout={handleLogout}
+    />
+  );
+
+  if (auth.role === "nutri") return (
+    <NutriPanel
+      alunos={alunos}
+      onUpdateAluno={updateAluno}
       onLogout={handleLogout}
     />
   );
