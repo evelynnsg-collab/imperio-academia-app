@@ -50,81 +50,20 @@ async function criarContaAluno(cpf, senha) {
 
 // ─── IMAGENS REAIS DE EXERCÍCIOS (Free Exercise DB — domínio público) ─────────
 const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
-const EX_IMGS = {
-  // Peito
-  "Supino Reto com Barra":      IMG_BASE + "Barbell_Bench_Press_-_Medium_Grip/0.jpg",
-  "Supino Inclinado com Halteres": IMG_BASE + "Incline_Dumbbell_Press/0.jpg",
-  "Crucifixo com Halteres":     IMG_BASE + "Dumbbell_Flyes/0.jpg",
-  "Crossover no Cabo":          IMG_BASE + "Cable_Crossover/0.jpg",
-  "Fundos no Paralelo":         IMG_BASE + "Dips_-_Chest_Version/0.jpg",
-  // Costas
-  "Puxada Frontal na Polia":    IMG_BASE + "Wide-Grip_Lat_Pulldown/0.jpg",
-  "Remada Curvada com Barra":   IMG_BASE + "Bent_Over_Barbell_Row/0.jpg",
-  "Remada Unilateral com Halter": IMG_BASE + "One-Arm_Dumbbell_Row/0.jpg",
-  "Levantamento Terra":         IMG_BASE + "Barbell_Deadlift/0.jpg",
-  "Pulldown com Triângulo":     IMG_BASE + "Seated_Cable_Rows/0.jpg",
-  // Ombros
-  "Desenvolvimento com Halteres": IMG_BASE + "Dumbbell_Shoulder_Press/0.jpg",
-  "Elevação Lateral com Halteres": IMG_BASE + "Side_Lateral_Raise/0.jpg",
-  "Desenvolvimento Arnold":     IMG_BASE + "Arnold_Dumbbell_Press/0.jpg",
-  "Elevação Frontal":           IMG_BASE + "Front_Dumbbell_Raise/0.jpg",
-  "Encolhimento (Shrug)":       IMG_BASE + "Dumbbell_Shrug/0.jpg",
-  // Bíceps
-  "Rosca Direta com Barra":     IMG_BASE + "Barbell_Curl/0.jpg",
-  "Rosca Alternada com Halteres": IMG_BASE + "Alternate_Hammer_Curl/0.jpg",
-  "Rosca Martelo":              IMG_BASE + "Hammer_Curls/0.jpg",
-  "Rosca Concentrada":          IMG_BASE + "Concentration_Curls/0.jpg",
-  // Tríceps
-  "Tríceps Pulley (Corda)":     IMG_BASE + "Triceps_Pushdown/0.jpg",
-  "Tríceps Testa com Barra EZ": IMG_BASE + "EZ-Bar_Skullcrusher/0.jpg",
-  "Extensão Overhead com Halter": IMG_BASE + "Dumbbell_One-Arm_Triceps_Extension/0.jpg",
-  "Mergulho no Banco":          IMG_BASE + "Bench_Dips/0.jpg",
-  // Abdômen
-  "Prancha Abdominal":          IMG_BASE + "Plank/0.jpg",
-  "Crunch Abdominal":           IMG_BASE + "Crunches/0.jpg",
-  "Russian Twist":              IMG_BASE + "Russian_Twist/0.jpg",
-  "Elevação de Pernas":         IMG_BASE + "Hanging_Leg_Raise/0.jpg",
-  "Abdominal Bicicleta":        IMG_BASE + "Cross-Body_Crunch/0.jpg",
-  // Quadríceps
-  "Agachamento Livre com Barra": IMG_BASE + "Barbell_Squat/0.jpg",
-  "Leg Press 45°":              IMG_BASE + "Leg_Press/0.jpg",
-  "Cadeira Extensora":          IMG_BASE + "Leg_Extensions/0.jpg",
-  "Avanço (Lunge)":             IMG_BASE + "Barbell_Lunge/0.jpg",
-  // Posterior
-  "Mesa Flexora":               IMG_BASE + "Lying_Leg_Curls/0.jpg",
-  "Stiff com Halteres":         IMG_BASE + "Romanian_Deadlift/0.jpg",
-  "Cadeira Flexora":            IMG_BASE + "Seated_Leg_Curl/0.jpg",
-  "RDL (Romanian Deadlift)":    IMG_BASE + "Romanian_Deadlift/0.jpg",
-  // Glúteos
-  "Hip Thrust com Barra":       IMG_BASE + "Barbell_Hip_Thrust/0.jpg",
-  "Agachamento Sumô":           IMG_BASE + "Sumo_Deadlift/0.jpg",
-  "Elevação Pélvica":           IMG_BASE + "Glute_Ham_Raise/0.jpg",
-  "Abdução de Quadril":         IMG_BASE + "Side_Lying_Hip_Abduction/0.jpg",
-  // Panturrilha
-  "Elevação de Calcanhares em Pé": IMG_BASE + "Standing_Calf_Raises/0.jpg",
-  "Elevação de Calcanhares Sentado": IMG_BASE + "Seated_Calf_Raise/0.jpg",
-  // Cardio
-  "HIIT na Esteira":            IMG_BASE + "Air_Bike/0.jpg",
-  "Corrida Leve (Steady State)": IMG_BASE + "Air_Bike/0.jpg",
-  "Pular Corda":                IMG_BASE + "Air_Bike/0.jpg",
-  // Alongamentos
-  "Isquiotibiais":              IMG_BASE + "Lying_Leg_Curls/0.jpg",
-  "Quadríceps":                 IMG_BASE + "Standing_Calf_Raises/0.jpg",
-  "Peitoral":                   IMG_BASE + "Dumbbell_Flyes/0.jpg",
-  "Gato-Vaca (Coluna)":         IMG_BASE + "Plank/0.jpg",
-};
+const EX_IMGS = {};
 
-// Retorna imagem real para qualquer exercício pelo nome
+// Retorna imagem real para qualquer exercício pelo nome — busca na BIBLIOTECA_FULL
 function getExImg(nome) {
   if (!nome) return null;
-  // Busca exata
-  if (EX_IMGS[nome]) return EX_IMGS[nome];
+  // Busca direta na BIBLIOTECA_FULL (tem as fotos reais)
+  const ex = BIBLIOTECA_FULL.find(e => e.nome === nome || e.nome.toLowerCase() === nome.toLowerCase());
+  if (ex && ex.img_url) return ex.img_url;
   // Busca parcial
-  const key = Object.keys(EX_IMGS).find(k =>
-    nome.toLowerCase().includes(k.toLowerCase()) ||
-    k.toLowerCase().includes(nome.toLowerCase())
+  const ex2 = BIBLIOTECA_FULL.find(e =>
+    e.nome.toLowerCase().includes(nome.toLowerCase()) ||
+    nome.toLowerCase().includes(e.nome.toLowerCase())
   );
-  return key ? EX_IMGS[key] : null;
+  return ex2 ? ex2.img_url : null;
 }
 
 // ─── PARSE DESCANSO ("60s","90s","2min","1:30") → segundos ───────────────────
