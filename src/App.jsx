@@ -52,18 +52,23 @@ async function criarContaAluno(cpf, senha) {
 const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
 const EX_IMGS = {};
 
-// Retorna imagem real para qualquer exercício pelo nome — busca na BIBLIOTECA_FULL
+// Retorna imagem real para qualquer exercício pelo nome
+// Usa lazy lookup na BIBLIOTECA_FULL (definida mais abaixo)
 function getExImg(nome) {
   if (!nome) return null;
-  // Busca direta na BIBLIOTECA_FULL (tem as fotos reais)
-  const ex = BIBLIOTECA_FULL.find(e => e.nome === nome || e.nome.toLowerCase() === nome.toLowerCase());
-  if (ex && ex.img_url) return ex.img_url;
-  // Busca parcial
-  const ex2 = BIBLIOTECA_FULL.find(e =>
-    e.nome.toLowerCase().includes(nome.toLowerCase()) ||
-    nome.toLowerCase().includes(e.nome.toLowerCase())
-  );
-  return ex2 ? ex2.img_url : null;
+  try {
+    // Busca exata
+    const ex = BIBLIOTECA_FULL.find(e => e.nome === nome);
+    if (ex && ex.img_url) return ex.img_url;
+    // Busca parcial
+    const ex2 = BIBLIOTECA_FULL.find(e =>
+      e.nome.toLowerCase().includes(nome.toLowerCase()) ||
+      nome.toLowerCase().includes(e.nome.toLowerCase())
+    );
+    return ex2 ? ex2.img_url : null;
+  } catch(e) {
+    return null;
+  }
 }
 
 // ─── PARSE DESCANSO ("60s","90s","2min","1:30") → segundos ───────────────────
