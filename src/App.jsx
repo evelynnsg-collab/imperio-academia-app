@@ -986,7 +986,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
     : TABS_ALL;
-  const [tab,setTab]=useState("info");
+  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -1925,8 +1925,8 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   const [alunoSel, setAlunoSel] = useState(null);
   const [busca, setBusca] = useState("");
 
-  const filtrados = alunos.filter(a =>
-    !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca)
+  const filtrados = (Array.isArray(alunos) ? alunos : []).filter(a =>
+    !busca || String(a?.nome || "").toLowerCase().includes(busca.toLowerCase()) || String(a?.cpf || "").includes(busca)
   );
 
   if (alunoSel) return (
@@ -2009,6 +2009,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
   const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
+  const [addLoading,setAddLoading]=useState(false);
+  const [addErr,setAddErr]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2019,14 +2021,12 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     />
   );
 
-  const filtrados=alunos.filter(a=>
-    a.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    a.cpf.includes(busca) ||
-    (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
+  const buscaNormalizada = String(busca || "").toLowerCase();
+  const filtrados=(Array.isArray(alunos) ? alunos : []).filter(a=>
+    String(a?.nome || "").toLowerCase().includes(buscaNormalizada) ||
+    String(a?.cpf || "").includes(String(busca || "")) ||
+    String(a?.objetivo || "").toLowerCase().includes(buscaNormalizada)
   );
-
-  const [addLoading,setAddLoading]=useState(false);
-  const [addErr,setAddErr]=useState("");
 
   const addAluno= async ()=>{
     if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
