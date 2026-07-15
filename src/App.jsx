@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-import { initializeApp, deleteApp } from "firebase/app";
+import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp, query, orderBy } from "firebase/firestore";
 
@@ -39,20 +39,11 @@ async function deletarAluno(id) {
 }
 // Cria conta de aluno no Firebase Auth (email = cpf@imperio.app, senha = cpf)
 async function criarContaAluno(cpf, senha) {
-  const cpfLimpo = String(cpf || "").replace(/\D/g, "");
-  const email = `${cpfLimpo}@imperio.app`;
-
-  // Usa uma instância secundária para não trocar a sessão do administrador
-  // pela conta do aluno que acabou de ser criada.
-  const secondaryApp = initializeApp(firebaseConfig, `cadastro-aluno-${Date.now()}`);
-  const secondaryAuth = getAuth(secondaryApp);
+  const email = `${cpf}@imperio.app`;
   try {
-    await createUserWithEmailAndPassword(secondaryAuth, email, senha || cpfLimpo);
-    await signOut(secondaryAuth);
+    await createUserWithEmailAndPassword(fbAuth, email, senha || cpf);
   } catch(e) {
     if (e.code !== "auth/email-already-in-use") throw e;
-  } finally {
-    await deleteApp(secondaryApp);
   }
 }
 
@@ -749,7 +740,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           </div>
           <div style={{ padding:"16px 20px 40px" }}>
             <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:16, padding:12, background:T.bg2, borderRadius:12 }}>
-              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:60,height:60}}/></div>
+              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:60,height:60}}/></div>
               <div>
                 <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{exSel.nome}</p>
                 <YBadge text={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow}/>
@@ -785,7 +776,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           <div style={{ padding:"16px 20px 40px" }}>
             {/* Anatomy illustration */}
             <div style={{ display:"flex", gap:14, marginBottom:16 }}>
-              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} style={{width:80,height:80}}/></div>
+              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:80,height:80}}/></div>
               <div style={{ flex:1 }}>
                 <YBadge text={exSel.grupo} color={cor}/>
                 <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
@@ -862,7 +853,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
               return (
                 <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
                   <div style={{ position:"relative" }}>
-                    <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
+                    <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
                     <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
                   </div>
                   <div style={{ padding:"10px 10px 12px" }}>
@@ -1002,15 +993,9 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const [refSel,setRefSel]=useState(null);
   const [editAlim,setEditAlim]=useState(null);
 
-  const salvarTudo = async () => {
-    try {
-      await onSave({ ...dados, treinos, cardapio });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      console.error("Erro ao salvar aluno:", e);
-      alert("Não foi possível salvar. Verifique a conexão e tente novamente.");
-    }
+  const salvarTudo = () => {
+    onSave({ ...dados, treinos, cardapio });
+    setSaved(true); setTimeout(()=>setSaved(false),2000);
   };
 
   // ── helpers treino
@@ -1057,7 +1042,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
     : TABS_ALL;
-  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
+  const [tab,setTab]=useState("info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -2080,8 +2065,6 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
   const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
-  const [addLoading,setAddLoading]=useState(false);
-  const [addErr,setAddErr]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2092,14 +2075,14 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     />
   );
 
-  const buscaNormalizada = String(busca || "").toLowerCase();
-  const filtrados = (Array.isArray(alunos) ? alunos : []).filter(a => {
-    if (!a || typeof a !== "object") return false;
-    const nome = String(a.nome || "").toLowerCase();
-    const cpf = String(a.cpf || a.id || "");
-    const objetivo = String(a.objetivo || "").toLowerCase();
-    return nome.includes(buscaNormalizada) || cpf.includes(busca) || objetivo.includes(buscaNormalizada);
-  });
+  const filtrados=alunos.filter(a=>
+    a.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    a.cpf.includes(busca) ||
+    (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const [addLoading,setAddLoading]=useState(false);
+  const [addErr,setAddErr]=useState("");
 
   const addAluno= async ()=>{
     if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
@@ -2319,7 +2302,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
     {icon:"credit",label:"Pagamentos",tab:"pagamentos"},
     {icon:"user",label:"Perfil",tab:"perfil"},
   ];
-  const TAB_TITLES={inicio:`Olá, ${String(aluno.nome || "Aluno").split(" ")[0]}! 👋`,treinos:"Meus Treinos",nutricao:"Nutrição",cardapio:"Meu Cardápio",perfil:"Meu Perfil",pagamentos:"Pagamentos"};
+  const TAB_TITLES={inicio:`Olá, ${aluno.nome.split(" ")[0]}! 👋`,treinos:"Meus Treinos",nutricao:"Nutrição",cardapio:"Meu Cardápio",perfil:"Meu Perfil",pagamentos:"Pagamentos"};
 
   const renderTab = () => {
     // ── INICIO
@@ -2888,26 +2871,7 @@ export default function App() {
   useEffect(() => {
     if (!auth || auth.role !== "admin") return;
     const unsub = onSnapshot(collection(db,"alunos"), snap => {
-      const listaSegura = snap.docs.map(d => {
-        const data = d.data() || {};
-        return {
-          ...data,
-          id: String(data.id || d.id),
-          cpf: String(data.cpf || data.id || d.id),
-          nome: String(data.nome || "Aluno sem nome"),
-          objetivo: String(data.objetivo || ""),
-          plano: String(data.plano || "Basic"),
-          status: String(data.status || "Ativo"),
-          treinos: data.treinos && typeof data.treinos === "object" ? data.treinos : { "Treino A": [] },
-          cardapio: data.cardapio && typeof data.cardapio === "object" ? data.cardapio : {},
-          fotos_evolucao: Array.isArray(data.fotos_evolucao) ? data.fotos_evolucao : [],
-          avaliacoes: Array.isArray(data.avaliacoes) ? data.avaliacoes : [],
-        };
-      });
-      setAlunos(listaSegura);
-    }, error => {
-      console.error("Erro ao carregar alunos:", error);
-      setAlunos([]);
+      setAlunos(snap.docs.map(d => d.data()));
     });
     return () => unsub();
   }, [auth]);
