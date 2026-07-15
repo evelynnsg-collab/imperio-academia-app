@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-import { initializeApp } from "firebase/app";
+import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp, query, orderBy } from "firebase/firestore";
 
@@ -39,11 +39,20 @@ async function deletarAluno(id) {
 }
 // Cria conta de aluno no Firebase Auth (email = cpf@imperio.app, senha = cpf)
 async function criarContaAluno(cpf, senha) {
-  const email = `${cpf}@imperio.app`;
+  const cpfLimpo = String(cpf || "").replace(/\D/g, "");
+  const email = `${cpfLimpo}@imperio.app`;
+
+  // Usa uma instância secundária para não trocar a sessão do administrador
+  // pela conta do aluno que acabou de ser criada.
+  const secondaryApp = initializeApp(firebaseConfig, `cadastro-aluno-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
   try {
-    await createUserWithEmailAndPassword(fbAuth, email, senha || cpf);
+    await createUserWithEmailAndPassword(secondaryAuth, email, senha || cpfLimpo);
+    await signOut(secondaryAuth);
   } catch(e) {
     if (e.code !== "auth/email-already-in-use") throw e;
+  } finally {
+    await deleteApp(secondaryApp);
   }
 }
 
@@ -993,9 +1002,15 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const [refSel,setRefSel]=useState(null);
   const [editAlim,setEditAlim]=useState(null);
 
-  const salvarTudo = () => {
-    onSave({ ...dados, treinos, cardapio });
-    setSaved(true); setTimeout(()=>setSaved(false),2000);
+  const salvarTudo = async () => {
+    try {
+      await onSave({ ...dados, treinos, cardapio });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error("Erro ao salvar aluno:", e);
+      alert("Não foi possível salvar. Verifique a conexão e tente novamente.");
+    }
   };
 
   // ── helpers treino
@@ -1042,7 +1057,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
     : TABS_ALL;
-  const [tab,setTab]=useState("info");
+  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -2075,11 +2090,14 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     />
   );
 
-  const filtrados=alunos.filter(a=>
-    a.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    a.cpf.includes(busca) ||
-    (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
-  );
+  const buscaNormalizada = String(busca || "").toLowerCase();
+  const filtrados = (Array.isArray(alunos) ? alunos : []).filter(a => {
+    if (!a || typeof a !== "object") return false;
+    const nome = String(a.nome || "").toLowerCase();
+    const cpf = String(a.cpf || a.id || "");
+    const objetivo = String(a.objetivo || "").toLowerCase();
+    return nome.includes(buscaNormalizada) || cpf.includes(busca) || objetivo.includes(buscaNormalizada);
+  });
 
   const [addLoading,setAddLoading]=useState(false);
   const [addErr,setAddErr]=useState("");
@@ -2302,7 +2320,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
     {icon:"credit",label:"Pagamentos",tab:"pagamentos"},
     {icon:"user",label:"Perfil",tab:"perfil"},
   ];
-  const TAB_TITLES={inicio:`Olá, ${aluno.nome.split(" ")[0]}! 👋`,treinos:"Meus Treinos",nutricao:"Nutrição",cardapio:"Meu Cardápio",perfil:"Meu Perfil",pagamentos:"Pagamentos"};
+  const TAB_TITLES={inicio:`Olá, ${String(aluno.nome || "Aluno").split(" ")[0]}! 👋`,treinos:"Meus Treinos",nutricao:"Nutrição",cardapio:"Meu Cardápio",perfil:"Meu Perfil",pagamentos:"Pagamentos"};
 
   const renderTab = () => {
     // ── INICIO
@@ -2871,7 +2889,26 @@ export default function App() {
   useEffect(() => {
     if (!auth || auth.role !== "admin") return;
     const unsub = onSnapshot(collection(db,"alunos"), snap => {
-      setAlunos(snap.docs.map(d => d.data()));
+      const listaSegura = snap.docs.map(d => {
+        const data = d.data() || {};
+        return {
+          ...data,
+          id: String(data.id || d.id),
+          cpf: String(data.cpf || data.id || d.id),
+          nome: String(data.nome || "Aluno sem nome"),
+          objetivo: String(data.objetivo || ""),
+          plano: String(data.plano || "Basic"),
+          status: String(data.status || "Ativo"),
+          treinos: data.treinos && typeof data.treinos === "object" ? data.treinos : { "Treino A": [] },
+          cardapio: data.cardapio && typeof data.cardapio === "object" ? data.cardapio : {},
+          fotos_evolucao: Array.isArray(data.fotos_evolucao) ? data.fotos_evolucao : [],
+          avaliacoes: Array.isArray(data.avaliacoes) ? data.avaliacoes : [],
+        };
+      });
+      setAlunos(listaSegura);
+    }, error => {
+      console.error("Erro ao carregar alunos:", error);
+      setAlunos([]);
     });
     return () => unsub();
   }, [auth]);
