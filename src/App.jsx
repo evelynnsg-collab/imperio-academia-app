@@ -1354,19 +1354,19 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
 
 // ─── EVOLUÇÃO ADMIN (Firebase Storage) ────────────────────────────────────────
 const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
-  const [fotos, setFotos] = useState([]);          // [{url, path, data, obs}]
-  const [avaliacoes, setAvaliacoes] = useState([]); // [{data, peso, bf, obs}]
+  const [fotos, setFotos] = useState([]);
+  const [avaliacoes, setAvaliacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showAvForm, setShowAvForm] = useState(false);
   const [newAv, setNewAv] = useState({ data: new Date().toISOString().split("T")[0], peso:"", bf:"", cintura:"", quadril:"", braco:"", obs:"" });
   const [msg, setMsg] = useState("");
   const [delConfirm, setDelConfirm] = useState(null);
+  const [erro, setErro] = useState(null);
   const fotoInputRef = useRef();
 
-  // Carrega dados do Firestore
   const carregarDados = async () => {
-    setLoading(true);
+    setLoading(true); setErro(null);
     try {
       const snap = await getDoc(doc(db, "alunos", alunoId));
       if (snap.exists()) {
@@ -1374,11 +1374,14 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
         setFotos(d.fotos_evolucao || []);
         setAvaliacoes(d.avaliacoes || []);
       }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      console.error("EvolucaoAdmin:", e);
+      setErro("Não foi possível carregar as fotos. Verifique a conexão.");
+    }
     setLoading(false);
   };
 
-  useEffect(() => { carregarDados(); }, [alunoId]);
+  useEffect(() => { if(alunoId) carregarDados(); }, [alunoId]);
 
   // Upload de foto para Firebase Storage
   const handleUpload = async (e) => {
@@ -1440,6 +1443,14 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
   };
 
   if (loading) return <div style={{ textAlign:"center", padding:40, color:T.text3 }}>Carregando...</div>;
+  if (erro) return (
+    <div style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:14, padding:24, textAlign:"center" }}>
+      <p style={{ fontSize:32, margin:"0 0 8px" }}>⚠️</p>
+      <p style={{ color:T.red, fontSize:14, fontWeight:700, margin:"0 0 4px" }}>Erro ao carregar evolução</p>
+      <p style={{ color:T.text3, fontSize:13, margin:"0 0 16px" }}>{erro}</p>
+      <button onClick={carregarDados} style={{ background:T.gold, border:"none", borderRadius:10, padding:"10px 20px", color:T.bg, fontWeight:700, cursor:"pointer" }}>Tentar novamente</button>
+    </div>
+  );
 
   return (
     <div>
