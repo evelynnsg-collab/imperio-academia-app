@@ -981,12 +981,11 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const TABS_ALL=[
     {id:"info",    l:"📋 Dados"},
     {id:"treinos", l:"🏋️ Treinos"},
-    {id:"evolucao",l:"📈 Evolução"},
   ];
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
     : TABS_ALL;
-  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
+  const [tab,setTab]=useState("info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
@@ -1115,7 +1114,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {exList.map(ex=>(
                   <div key={ex.id} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, overflow:"hidden", display:"flex" }}>
-                    <div style={{ width:72, flexShrink:0 }}><ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:72,height:72}}/></div>
+                    <div style={{ width:72, height:72, flexShrink:0, overflow:"hidden" }}>
+                      {ex.img
+                        ? <img src={ex.img} alt={ex.nome} style={{ width:72, height:72, objectFit:"cover", display:"block" }}/>
+                        : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} style={{width:72,height:72}}/>
+                      }
+                    </div>
                     <div style={{ flex:1, padding:"10px 12px" }}>
                       <p style={{ margin:"0 0 3px", fontSize:14, fontWeight:700, color:T.text }}>{ex.nome}</p>
                       <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}x{ex.reps} · Descanso {ex.descanso}</p>
@@ -1193,18 +1197,21 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
 
 // ─── EXERCISE FORM ────────────────────────────────────────────────────────────
 const ExForm = ({ ex, onSave, onCancel }) => {
+const ExForm = ({ ex, onSave, onCancel }) => {
   const [f,setF]=useState({...ex});
   const imgRef=useRef();
   const handleImg=(e)=>{
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
-    reader.onload=(ev)=>setF(p=>({...p,img:ev.target.result}));
+    reader.onload=(ev)=>setF(p=>({...p,img:ev.target.result, img_url:ev.target.result}));
     reader.readAsDataURL(file);
   };
+  // foto atual: img (upload manual) ou img_url (da biblioteca)
+  const fotoAtual = f.img || f.img_url || getExImg(f.nome);
   return (
     <div>
       <Inp label="NOME DO EXERCÍCIO" value={f.nome} onChange={v=>setF(p=>({...p,nome:v}))} placeholder="Ex: Agachamento Livre"/>
-      <Inp label="MÚSCULO" value={f.musculo||""} onChange={v=>setF(p=>({...p,musculo:v}))} placeholder="Ex: Pernas, Peito..."/>
+      <Inp label="MÚSCULO / GRUPO" value={f.musculo||f.grupo||""} onChange={v=>setF(p=>({...p,musculo:v,grupo:v}))} placeholder="Ex: Pernas, Peito..."/>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:12 }}>
         <Inp label="SÉRIES" value={f.series} onChange={v=>setF(p=>({...p,series:v}))} placeholder="4"/>
         <Inp label="REPS" value={f.reps} onChange={v=>setF(p=>({...p,reps:v}))} placeholder="12"/>
@@ -1212,14 +1219,25 @@ const ExForm = ({ ex, onSave, onCancel }) => {
       </div>
       <Textarea label="OBSERVAÇÕES" value={f.obs||""} onChange={v=>setF(p=>({...p,obs:v}))} placeholder="Cuidados, forma de execução..." rows={2}/>
       <Inp label="LINK DO VÍDEO (YouTube/Vimeo)" value={f.video||""} onChange={v=>setF(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
+
+      {/* FOTO */}
       <div style={{ marginBottom:12 }}>
-        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>IMAGEM ILUSTRATIVA</label>
-        {f.img && <img src={f.img} alt="" style={{ width:"100%", borderRadius:10, marginBottom:8, maxHeight:120, objectFit:"cover" }}/>}
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:8 }}>FOTO DO EXERCÍCIO</label>
+        {fotoAtual && (
+          <div style={{ position:"relative", marginBottom:8 }}>
+            <img src={fotoAtual} alt={f.nome} style={{ width:"100%", borderRadius:10, maxHeight:160, objectFit:"cover", display:"block" }}/>
+            <button onClick={()=>setF(p=>({...p,img:"",img_url:""}))}
+              style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.7)", border:"none", borderRadius:50, width:28, height:28, color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          </div>
+        )}
         <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
-        <button onClick={()=>imgRef.current.click()} style={{ background:T.card2, border:`1px dashed ${T.border}`, borderRadius:10, padding:"10px 16px", color:T.text3, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
-          <Ic n="upload" size={16} color={T.text3}/>{f.img?"Trocar imagem":"Upload de imagem"}
+        <button onClick={()=>imgRef.current.click()}
+          style={{ background:T.card2, border:`2px dashed ${T.yellow}66`, borderRadius:12, padding:"12px 16px", color:T.yellow, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
+          <Ic n="upload" size={16} color={T.yellow}/>
+          {fotoAtual ? "📷 Trocar foto da galeria" : "📷 Fazer upload da foto"}
         </button>
       </div>
+
       <div style={{ display:"flex", gap:10, marginTop:16 }}>
         <Btn onClick={onCancel} outline style={{ flex:1 }}>Cancelar</Btn>
         <Btn onClick={()=>onSave(f)} style={{ flex:2, color:T.bg }}>💾 Salvar exercício</Btn>
@@ -1925,8 +1943,8 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   const [alunoSel, setAlunoSel] = useState(null);
   const [busca, setBusca] = useState("");
 
-  const filtrados = (Array.isArray(alunos) ? alunos : []).filter(a =>
-    !busca || String(a?.nome || "").toLowerCase().includes(busca.toLowerCase()) || String(a?.cpf || "").includes(busca)
+  const filtrados = alunos.filter(a =>
+    !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca)
   );
 
   if (alunoSel) return (
@@ -2009,8 +2027,6 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
   const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
-  const [addLoading,setAddLoading]=useState(false);
-  const [addErr,setAddErr]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2021,12 +2037,14 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     />
   );
 
-  const buscaNormalizada = String(busca || "").toLowerCase();
-  const filtrados=(Array.isArray(alunos) ? alunos : []).filter(a=>
-    String(a?.nome || "").toLowerCase().includes(buscaNormalizada) ||
-    String(a?.cpf || "").includes(String(busca || "")) ||
-    String(a?.objetivo || "").toLowerCase().includes(buscaNormalizada)
+  const filtrados=alunos.filter(a=>
+    a.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    a.cpf.includes(busca) ||
+    (a.objetivo||"").toLowerCase().includes(busca.toLowerCase())
   );
+
+  const [addLoading,setAddLoading]=useState(false);
+  const [addErr,setAddErr]=useState("");
 
   const addAluno= async ()=>{
     if(!newAluno.nome.trim()||!newAluno.cpf.trim()){setAddErr("Nome e CPF são obrigatórios.");return;}
