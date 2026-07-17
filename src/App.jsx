@@ -1197,7 +1197,6 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
 
 // ─── EXERCISE FORM ────────────────────────────────────────────────────────────
 const ExForm = ({ ex, onSave, onCancel }) => {
-const ExForm = ({ ex, onSave, onCancel }) => {
   const [f,setF]=useState({...ex});
   const imgRef=useRef();
   const handleImg=(e)=>{
