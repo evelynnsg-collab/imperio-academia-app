@@ -1941,77 +1941,6 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   const [alunoSel, setAlunoSel] = useState(null);
   const [busca, setBusca] = useState("");
-  const [abaAtiva, setAbaAtiva] = useState("alunos");
-  const [videos, setVideos] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadMsg, setUploadMsg] = useState("");
-  const [legendas, setLegendas] = useState({});
-  const videoInputRef = useRef();
-  const MAX_VIDEOS = 3;
-  const MAX_DURATION = 600;
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, "nutri_config", "videos"));
-        if (snap.exists()) {
-          const data = snap.data();
-          setVideos(data.videos || []);
-          const legs = {};
-          (data.videos || []).forEach(v => { legs[v.id] = v.legenda || ""; });
-          setLegendas(legs);
-        }
-      } catch(e) {}
-    })();
-  }, []);
-
-  const salvarVideos = async (novosVideos) => {
-    try {
-      await setDoc(doc(db, "nutri_config", "videos"), { videos: novosVideos });
-    } catch(e) { setUploadMsg("❌ Erro ao salvar."); }
-  };
-
-  const handleVideoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    e.target.value = "";
-    if (videos.length >= MAX_VIDEOS) { setUploadMsg(`❌ Limite de ${MAX_VIDEOS} vídeos atingido.`); return; }
-    const url = URL.createObjectURL(file);
-    const vid = document.createElement("video");
-    vid.src = url;
-    vid.onloadedmetadata = async () => {
-      URL.revokeObjectURL(url);
-      if (vid.duration > MAX_DURATION) { setUploadMsg(`❌ Vídeo muito longo (${Math.round(vid.duration/60)}min). Máximo 10 minutos.`); return; }
-      setUploading(true); setUploadMsg("⏳ Enviando vídeo...");
-      try {
-        const ts = Date.now();
-        const path = `nutri_videos/${ts}_${file.name.replace(/[^a-zA-Z0-9.]/g,"_")}`;
-        const ref = storageRef(storage, path);
-        await uploadBytes(ref, file);
-        const videoUrl = await getDownloadURL(ref);
-        const novoVideo = { id:ts, url:videoUrl, path, nome:file.name, duracao:Math.round(vid.duration), legenda:"", data:new Date().toLocaleDateString("pt-BR") };
-        const novos = [...videos, novoVideo];
-        setVideos(novos); setLegendas(p=>({...p,[ts]:""}));
-        await salvarVideos(novos);
-        setUploadMsg("✅ Vídeo enviado!");
-      } catch(err) { setUploadMsg("❌ Erro ao enviar. Tente novamente."); }
-      setUploading(false);
-      setTimeout(() => setUploadMsg(""), 3500);
-    };
-    vid.onerror = () => setUploadMsg("❌ Arquivo inválido.");
-  };
-
-  const salvarLegenda = async (id) => {
-    const novos = videos.map(v => v.id===id ? {...v, legenda:legendas[id]||""} : v);
-    setVideos(novos); await salvarVideos(novos);
-    setUploadMsg("✅ Legenda salva!"); setTimeout(()=>setUploadMsg(""),2000);
-  };
-
-  const removerVideo = async (id, path) => {
-    try { if(path) await deleteObject(storageRef(storage,path)); } catch(e){}
-    const novos = videos.filter(v=>v.id!==id);
-    setVideos(novos); await salvarVideos(novos);
-  };
 
   const filtrados = alunos.filter(a => !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca));
 
@@ -2033,17 +1962,11 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
             <Ic n="logout" size={14} color={T.red}/>Sair
           </button>
         </div>
-        <div style={{ display:"flex", gap:8 }}>
-          {[{id:"alunos",l:"👥 Alunos"},{id:"videos",l:"🎥 Vídeos"}].map(a=>(
-            <button key={a.id} onClick={()=>setAbaAtiva(a.id)} style={{ flex:1, background:abaAtiva===a.id?T.green:"transparent", border:`1px solid ${T.green}${abaAtiva===a.id?"":"44"}`, borderRadius:10, padding:"8px 6px", color:abaAtiva===a.id?"#000":T.green, fontSize:12, fontWeight:700, cursor:"pointer" }}>{a.l}</button>
-          ))}
-        </div>
       </div>
 
       <div style={{ padding:16 }}>
 
-        {abaAtiva==="alunos" && (
-          <div>
+        <div>
             <div style={{ position:"relative", marginBottom:14 }}>
               <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={16} color={T.text3}/></div>
               <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar aluno..." style={{ width:"100%", background:T.card2, border:`1px solid ${busca?T.green:T.border}`, borderRadius:12, padding:"12px 12px 12px 40px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
@@ -2062,60 +1985,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
               ))}
               {filtrados.length===0 && <div style={{ textAlign:"center", padding:40, color:T.text3 }}><p style={{ fontSize:36 }}>🔍</p><p>Nenhum aluno encontrado</p></div>}
             </div>
-          </div>
-        )}
-
-        {abaAtiva==="videos" && (
-          <div>
-            <div style={{ background:T.card2, border:`1px solid ${T.green}33`, borderRadius:14, padding:"14px 16px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div><p style={{ margin:0, fontSize:14, fontWeight:800, color:T.text }}>🎥 Vídeos para alunos</p><p style={{ margin:"4px 0 0", fontSize:12, color:T.text3 }}>{videos.length}/{MAX_VIDEOS} vídeos · máx. 10 min cada</p></div>
-              <div style={{ display:"flex", gap:6 }}>{[0,1,2].map(i=><div key={i} style={{ width:14,height:14,borderRadius:50,background:i<videos.length?T.green:T.border }}/>)}</div>
-            </div>
-
-            {uploadMsg && <div style={{ background:uploadMsg.startsWith("✅")?T.greenDim:uploadMsg.startsWith("⏳")?T.yellowDim:T.redDim, border:`1px solid ${uploadMsg.startsWith("✅")?T.green:T.red}44`, borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:13, fontWeight:700, color:uploadMsg.startsWith("✅")?T.green:uploadMsg.startsWith("⏳")?T.yellow:T.red }}>{uploadMsg}</div>}
-
-            {videos.length < MAX_VIDEOS && (
-              <div>
-                <input type="file" accept="video/*" ref={videoInputRef} style={{ display:"none" }} onChange={handleVideoUpload}/>
-                <button onClick={()=>videoInputRef.current.click()} disabled={uploading}
-                  style={{ width:"100%", background:uploading?"#222":`linear-gradient(135deg,${T.green},#16A34A)`, border:"none", borderRadius:14, padding:"16px", color:"#000", fontSize:15, fontWeight:900, cursor:uploading?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:16, opacity:uploading?0.6:1 }}>
-                  <span style={{ fontSize:22 }}>🎥</span>
-                  {uploading ? "Enviando..." : `+ Adicionar vídeo (${videos.length}/${MAX_VIDEOS})`}
-                </button>
-              </div>
-            )}
-
-            {videos.length===0 ? (
-              <div style={{ textAlign:"center", padding:"48px 24px", color:T.text3 }}>
-                <p style={{ fontSize:52, marginBottom:12 }}>🎥</p>
-                <p style={{ fontSize:16, fontWeight:700, color:T.text, marginBottom:6 }}>Nenhum vídeo publicado</p>
-                <p style={{ fontSize:13 }}>Adicione até 3 vídeos de até 10 minutos</p>
-              </div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                {videos.map((v,i)=>(
-                  <div key={v.id} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.green}33`, overflow:"hidden" }}>
-                    <video src={v.url} controls style={{ width:"100%", maxHeight:220, background:"#000", display:"block" }}/>
-                    <div style={{ padding:"14px 16px" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                        <div>
-                          <p style={{ margin:0, fontSize:13, fontWeight:700, color:T.text }}>Vídeo {i+1}</p>
-                          <p style={{ margin:"2px 0 0", fontSize:11, color:T.text3 }}>{Math.floor(v.duracao/60)}:{String(v.duracao%60).padStart(2,"0")} · {v.data}</p>
-                        </div>
-                        <button onClick={()=>removerVideo(v.id,v.path)} style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:8, padding:"6px 12px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>🗑 Remover</button>
-                      </div>
-                      <label style={{ fontSize:11, color:T.green, fontWeight:700, letterSpacing:.8, display:"block", marginBottom:6 }}>LEGENDA</label>
-                      <textarea value={legendas[v.id]||""} onChange={e=>setLegendas(p=>({...p,[v.id]:e.target.value}))}
-                        placeholder="Escreva uma legenda para este vídeo... (sem limite de caracteres)" rows={3}
-                        style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 12px", color:T.text, fontSize:13, resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"system-ui,sans-serif" }}/>
-                      <button onClick={()=>salvarLegenda(v.id)} style={{ width:"100%", background:T.greenDim, border:`1px solid ${T.green}44`, borderRadius:10, padding:"10px", color:T.green, fontSize:13, fontWeight:700, cursor:"pointer", marginTop:8 }}>💾 Salvar legenda</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
