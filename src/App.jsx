@@ -2346,20 +2346,17 @@ const NUTRI_VIDEOS_DEFAULT = [
 
 const NutricaoAluno = () => {
   const [videos, setVideos] = useState(NUTRI_VIDEOS_DEFAULT);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, "nutri_config", "videos"));
-        if (snap.exists() && (snap.data().videos||[]).length > 0) {
-          setVideos(snap.data().videos);
-        }
-      } catch(e) {}
-    })();
+    // Tenta buscar do Firestore — se tiver vídeos lá, usa eles
+    // Se não tiver ou der erro, mantém os hardcoded
+    getDoc(doc(db, "nutri_config", "videos")).then(snap => {
+      if (snap.exists()) {
+        const lista = snap.data().videos || [];
+        if (lista.length > 0) setVideos(lista);
+      }
+    }).catch(() => {});
   }, []);
-
-  if (loading) return <div style={{ textAlign:"center", padding:40, color:T.text3 }}>Carregando...</div>;
 
   return (
     <div>
