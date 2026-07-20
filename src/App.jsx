@@ -377,6 +377,25 @@ const T = {
   gold:"linear-gradient(135deg,#F5C518,#FFD700)",
 };
 
+// ─── LOGO IMPÉRIO ─────────────────────────────────────────────────────────────
+// LOGO_URL = versão com fundo transparente (ícone / marca d'água)
+// LOGO_BG_URL = versão com fundo preto (imagem de fundo da tela de login)
+const LOGO_URL = "https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/logo-imperio-transparente.png";
+const LOGO_BG_URL = "https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/logo-imperio-fundo.png";
+
+// Marca d'água discreta — usada de fundo em todas as telas do app
+const Watermark = ({ size="55%", opacity=0.05 }) => (
+  <div aria-hidden="true" style={{
+    position:"fixed", inset:0, zIndex:-1,
+    backgroundImage:`url(${LOGO_URL})`,
+    backgroundRepeat:"no-repeat",
+    backgroundPosition:"center",
+    backgroundSize:size,
+    opacity,
+    pointerEvents:"none",
+  }}/>
+);
+
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const Ic = ({ n, size=20, color="currentColor", style={} }) => {
   const p = {
@@ -899,11 +918,11 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,#0A0A0A,#1A1500)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{width:"100%",maxWidth:380}}>
+    <div style={{minHeight:"100vh",position:"relative",backgroundImage:`url(${LOGO_BG_URL})`,backgroundSize:"cover",backgroundPosition:"center",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,#0A0A0AE6,#1A1500E6)"}}/>
+      <div style={{width:"100%",maxWidth:380,position:"relative",zIndex:1}}>
         <div style={{textAlign:"center",marginBottom:40}}>
-          <div style={{width:80,height:80,borderRadius:24,background:T.gold,margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 8px 40px ${T.yellow}55`,fontSize:36}}>💪</div>
-          <h1 style={{fontSize:32,fontWeight:900,color:T.text,margin:0,letterSpacing:-1}}>IM<span style={{color:T.yellow}}>PÉRIO</span></h1>
+          <img src={LOGO_URL} alt="Império Academia" style={{width:150,height:"auto",margin:"0 auto 16px",display:"block",filter:`drop-shadow(0 8px 30px ${T.yellow}55)`}}/>
           <p style={{color:T.text3,fontSize:13,margin:"6px 0 0"}}>Academia — Plataforma Oficial</p>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -988,7 +1007,8 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
   const [tab,setTab]=useState("info");
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+      <Watermark/>
       {showConfirm && <Confirm msg={`Excluir aluno ${aluno.nome}?`} onYes={()=>{ onDelete(aluno.id); }} onNo={()=>setShowConfirm(false)}/>}
       {editEx && (
         <Modal title={editEx.id?"Editar exercício":"Novo exercício"} onClose={()=>setEditEx(null)}>
@@ -1951,7 +1971,8 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+      <Watermark/>
       <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, padding:"16px 20px", borderBottom:`1px solid ${T.green}33`, position:"sticky", top:0, zIndex:30 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <div>
@@ -2035,7 +2056,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const ADMIN_TABS=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif" }}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+      <Watermark/>
       {showAdd && (
         <Modal title="Cadastrar novo aluno" onClose={()=>setShowAdd(false)}>
           <Inp label="NOME COMPLETO *" value={newAluno.nome} onChange={v=>setNewAluno(p=>({...p,nome:v}))}/>
@@ -2699,7 +2721,8 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
   };
 
   return (
-    <div style={{ maxWidth:430, margin:"0 auto", background:T.bg, minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative" }}>
+    <div style={{ maxWidth:430, margin:"0 auto", background:T.bg, minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative", zIndex:0 }}>
+      <Watermark/>
       {menuOpen && <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"#000C", zIndex:40, maxWidth:430, margin:"0 auto" }}/>}
       {/* Sidebar */}
       <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
@@ -2782,13 +2805,15 @@ const AlunoAppFirebase = ({ alunoId, onLogout }) => {
   };
 
   if (carregando) return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:0}}>
+      <Watermark/>
       <p style={{color:T.text3,fontSize:14}}>Carregando seu perfil...</p>
     </div>
   );
 
   if (!aluno) return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:0}}>
+      <Watermark/>
       <p style={{color:T.red,fontSize:14}}>Perfil não encontrado.</p>
     </div>
   );
@@ -2886,8 +2911,9 @@ export default function App() {
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (carregando) return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
-      <div style={{width:60,height:60,borderRadius:20,background:T.gold,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:`0 8px 32px ${T.yellow}44`}}>💪</div>
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,position:"relative",zIndex:0}}>
+      <Watermark/>
+      <img src={LOGO_URL} alt="Império Academia" style={{width:90,height:"auto",filter:`drop-shadow(0 8px 32px ${T.yellow}44)`}}/>
       <p style={{color:T.text3,fontSize:14}}>Carregando IMPÉRIO...</p>
       <div style={{width:40,height:3,background:T.card2,borderRadius:50,overflow:"hidden"}}>
         <div style={{width:"60%",height:"100%",background:T.gold,borderRadius:50,animation:"slide 1s ease-in-out infinite"}}/>
