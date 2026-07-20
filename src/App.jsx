@@ -2608,7 +2608,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
         <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, borderRadius:16, padding:16, border:`1px solid ${T.green}33`, marginBottom:16 }}>
           <p style={{ margin:"0 0 4px", color:T.green, fontSize:11, fontWeight:700, letterSpacing:1 }}>SEU PLANO ALIMENTAR</p>
           <h3 style={{ margin:"0 0 4px", fontSize:17, fontWeight:900, color:T.text }}>Cardápio personalizado</h3>
-          <p style={{ margin:0, color:T.text3, fontSize:13 }}>Montado pela Dra. Ana Paula</p>
+          <p style={{ margin:0, color:T.text3, fontSize:13 }}>Montado pela Nutricionista Beatriz Lustosa</p>
         </div>
         {REFEICOES_DEFAULT.map((ref,i)=>{
           const r=aluno.cardapio?.[ref]; const alims=r?.alimentos||[];
