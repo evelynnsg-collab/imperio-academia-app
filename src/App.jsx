@@ -918,7 +918,7 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   };
 
   return (
-    <div style={{minHeight:"100vh",position:"relative",backgroundImage:`url(${LOGO_BG_URL})`,backgroundSize:"cover",backgroundPosition:"center",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{minHeight:"100vh",position:"relative",background:"#000",backgroundImage:`url(${LOGO_BG_URL})`,backgroundSize:"contain",backgroundRepeat:"no-repeat",backgroundPosition:"center",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
       <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,#0A0A0AE6,#1A1500E6)"}}/>
       <div style={{width:"100%",maxWidth:380,position:"relative",zIndex:1}}>
         <div style={{textAlign:"center",marginBottom:40}}>
@@ -933,7 +933,7 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
             {loading?"Entrando...":"ENTRAR"}
           </button>
         </div>
-        <p style={{textAlign:"center",color:T.text3,fontSize:12,marginTop:20}}>Admin: admin · Nutricionista: nutri · Aluno: CPF</p>
+        <p style={{textAlign:"center",color:T.text3,fontSize:12,marginTop:20,lineHeight:1.7}}>Login do aluno: CPF (sem traços e pontos)<br/>Senha: CPF (sem traços e pontos)</p>
       </div>
     </div>
   );
