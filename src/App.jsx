@@ -2230,9 +2230,7 @@ const NUTRI_VIDEOS=[
 
 // ─── NUTRIÇÃO DO ALUNO (lê vídeos do Firestore) ──────────────────────────────
 const NUTRI_VIDEOS_DEFAULT = [
-  {id:1, url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/videos/nutri_video_01.mp4", duracao:180, legenda:"", data:"17/07/2026"},
-  {id:2, url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/videos/nutri_video_02.mp4", duracao:120, legenda:"", data:"17/07/2026"},
-  {id:3, url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/videos/nutri_video_03.mp4", duracao:90,  legenda:"", data:"17/07/2026"},
+  {id:1, url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/videos/nutri_video_01.mp4", duracao:41, legenda:"", data:"20/07/2026"},
 ];
 
 const NutricaoAluno = () => {
