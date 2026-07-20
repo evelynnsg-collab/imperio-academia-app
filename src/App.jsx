@@ -2255,7 +2255,8 @@ const NutricaoAluno = () => {
           <div style={{ width:52, height:52, borderRadius:50, background:`linear-gradient(135deg,${T.green},#16A34A)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, boxShadow:`0 4px 18px ${T.green}44` }}>👩‍⚕️</div>
           <div>
             <p style={{ margin:"0 0 2px", fontSize:10, color:T.green, fontWeight:700, letterSpacing:1 }}>NUTRICIONISTA OFICIAL</p>
-            <h3 style={{ margin:"0 0 2px", fontSize:16, fontWeight:900, color:T.text }}>IMPÉRIO Academia</h3>
+            <h3 style={{ margin:"0 0 2px", fontSize:16, fontWeight:900, color:T.text }}>Beatriz Lustosa</h3>
+            <p style={{ margin:"0 0 2px", color:T.green, fontSize:11, fontWeight:700 }}>CRN-3 96180</p>
             <p style={{ margin:0, color:T.text3, fontSize:12 }}>Conteúdo exclusivo para você</p>
           </div>
         </div>
@@ -2329,7 +2330,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
               <h2 style={{ margin:"0 0 4px", fontSize:22, fontWeight:900, color:T.text }}>{aluno.nome}</h2>
               <p style={{ margin:0, color:T.text3, fontSize:13 }}>Objetivo: {aluno.objetivo||"Não definido"}</p>
             </div>
-            <div style={{ width:56, height:56, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow:`0 4px 20px ${T.yellow}55` }}>💪</div>
+            <div style={{ width:56, height:56, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 4px 20px ${T.yellow}55`, overflow:"hidden", padding:8, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginTop:16 }}>
             {[{v:fichas.length,l:"fichas"},{v:exList.length,l:"exercícios"},{v:done.length,l:"concluídos"}].map(s=>(
@@ -2656,7 +2657,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
     if(tab==="perfil") return (
       <div>
         <div style={{ textAlign:"center", marginBottom:24 }}>
-          <div style={{ width:80, height:80, borderRadius:50, background:T.gold, margin:"0 auto 12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, boxShadow:`0 4px 24px ${T.yellow}44` }}>💪</div>
+          <div style={{ width:80, height:80, borderRadius:50, background:T.gold, margin:"0 auto 12px", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 4px 24px ${T.yellow}44`, overflow:"hidden", padding:12, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
           <h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{aluno.nome}</h2>
           <p style={{ margin:"0 0 8px", color:T.text3, fontSize:13 }}>CPF: {aluno.cpf}</p>
           <YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/>
@@ -2726,7 +2727,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
       <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
         <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"32px 20px 20px", borderBottom:`1px solid ${T.yellow}22` }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>💪</div>
+            <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:7, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
             <div><p style={{ margin:0, fontSize:15, fontWeight:900, color:T.text }}>{aluno.nome}</p><YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/></div>
           </div>
         </div>
