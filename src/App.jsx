@@ -880,8 +880,8 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const ADMIN_SENHA = "admin@123";
-  const NUTRI_SENHA = "nutri@123";
+  const ADMIN_SENHA = "imperioadmin@2026";
+  const NUTRI_SENHA = "beatriznutri@2026";
 
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
