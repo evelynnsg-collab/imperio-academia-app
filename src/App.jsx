@@ -2289,7 +2289,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
               </Card>
             </Sec>
             <Sec title="Configurações">
-              {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 8765-4321"},{l:"Versão",v:"3.0.0"}].map(c=>(
+              {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 6602-4014"},{l:"Versão",v:"3.0.0"}].map(c=>(
                 <Card key={c.l} style={{ padding:"13px 16px", display:"flex", justifyContent:"space-between", marginBottom:8 }}>
                   <span style={{ color:T.text2, fontSize:14 }}>{c.l}</span>
                   <span style={{ color:T.yellow, fontWeight:700, fontSize:14 }}>{c.v}</span>
@@ -2868,7 +2868,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         <p style={{ fontSize:40, marginBottom:12 }}>💳</p>
         <p style={{ color:T.text, fontSize:16, fontWeight:700 }}>Pagamentos</p>
         <p style={{ color:T.text3, fontSize:14, marginTop:8 }}>Entre em contato com a academia pelo WhatsApp.</p>
-        <a href="https://wa.me/5511999999999?text=Olá, preciso de ajuda com meu pagamento." target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:8, marginTop:20, background:"#25D36622", border:"1px solid #25D36644", borderRadius:12, padding:"12px 20px", color:"#25D366", textDecoration:"none", fontWeight:700, fontSize:14 }}>
+        <a href="https://wa.me/5511966024014?text=Olá, preciso de ajuda com meu pagamento." target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:8, marginTop:20, background:"#25D36622", border:"1px solid #25D36644", borderRadius:12, padding:"12px 20px", color:"#25D366", textDecoration:"none", fontWeight:700, fontSize:14 }}>
           <Ic n="whatsapp" size={18} color="#25D366"/> Falar no WhatsApp
         </a>
       </div>
@@ -2930,7 +2930,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         })}
       </div>
       {/* WhatsApp FAB */}
-      <a href="https://wa.me/5511999999999?text=Olá, preciso de ajuda pelo app da academia." target="_blank" rel="noopener noreferrer" style={{ position:"fixed", bottom:90, right:"max(20px,calc(50vw - 195px))", width:52, height:52, borderRadius:50, background:"linear-gradient(135deg,#25D366,#128C7E)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 20px #25D36688", zIndex:35, textDecoration:"none" }}>
+      <a href="https://wa.me/5511966024014?text=Olá, preciso de ajuda pelo app da academia." target="_blank" rel="noopener noreferrer" style={{ position:"fixed", bottom:90, right:"max(20px,calc(50vw - 195px))", width:52, height:52, borderRadius:50, background:"linear-gradient(135deg,#25D366,#128C7E)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 20px #25D36688", zIndex:35, textDecoration:"none" }}>
         <Ic n="whatsapp" size={26} color={T.text}/>
       </a>
     </div>
