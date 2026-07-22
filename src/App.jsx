@@ -851,7 +851,6 @@ const initAlunos = [
     objetivo:"Definição",
     obs:"",
     status:"Ativo",
-    plano:"Premium",
     since:"Jun 2026",
     treinos: {
       "Treino A": [
@@ -1051,7 +1050,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
           <div style={{ width:44, height:44, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>👤</div>
           <div style={{ flex:1 }}>
             <p style={{ margin:0, fontSize:17, fontWeight:900, color:T.text }}>{dados.nome}</p>
-            <p style={{ margin:"2px 0 0", fontSize:12, color:T.text3 }}>CPF: {dados.cpf} · {dados.plano} · <span style={{ color:dados.status==="Ativo"?T.green:T.red }}>{dados.status}</span></p>
+            <p style={{ margin:"2px 0 0", fontSize:12, color:T.text3 }}>CPF: {dados.cpf} · <span style={{ color:dados.status==="Ativo"?T.green:T.red }}>{dados.status}</span></p>
           </div>
         </div>
 
@@ -1076,15 +1075,11 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
               <Inp label="DATA DE NASCIMENTO" type="date" value={dados.nascimento||""} onChange={v=>setDados(p=>({...p,nascimento:v}))}/>
             </Sec>
             <Sec title="Academia">
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-                {[{l:"Plano",k:"plano",opts:["Basic","Premium"]},{l:"Status",k:"status",opts:["Ativo","Pendente","Bloqueado"]}].map(f=>(
-                  <div key={f.k}>
-                    <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{f.l.toUpperCase()}</label>
-                    <select value={dados[f.k]||""} onChange={e=>setDados(p=>({...p,[f.k]:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
-                      {f.opts.map(o=><option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                ))}
+              <div style={{ marginBottom:12 }}>
+                <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>STATUS</label>
+                <select value={dados.status||""} onChange={e=>setDados(p=>({...p,status:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
+                  {["Ativo","Pendente","Bloqueado"].map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
               </div>
               <Inp label="OBJETIVO" value={dados.objetivo||""} onChange={v=>setDados(p=>({...p,objetivo:v}))} placeholder="Ex: Emagrecimento, Hipertrofia..."/>
             </Sec>
@@ -2009,7 +2004,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
               {filtrados.map(a=>(
                 <div key={a.id} onClick={()=>setAlunoSel(a)} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14 }}>
                   <div style={{ width:44, height:44, borderRadius:50, background:T.greenDim, border:`2px solid ${T.green}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>👤</div>
-                  <div style={{ flex:1 }}><p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{a.nome}</p><p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{a.cpf} · {a.plano}</p></div>
+                  <div style={{ flex:1 }}><p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{a.nome}</p><p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>{a.cpf}</p></div>
                   <Ic n="chevR" size={16} color={T.text3}/>
                 </div>
               ))}
@@ -2026,7 +2021,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [subTab,setSubTab]=useState("cadastros");  const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
-  const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
+  const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
   const [addLoading,setAddLoading]=useState(false);
   const [addErr,setAddErr]=useState("");
   const [backupLoading,setBackupLoading]=useState(false);
@@ -2059,7 +2054,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
         since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"})
       };
       await onAddAluno(alunoCompleto);
-      setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic"});
+      setNewAluno({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo"});
       setShowAdd(false);
     } catch(e) {
       setAddErr("Erro ao cadastrar: "+e.message);
@@ -2148,15 +2143,11 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
           <Inp label="TELEFONE" value={newAluno.telefone} onChange={v=>setNewAluno(p=>({...p,telefone:v}))} placeholder="(11) 9 0000-0000"/>
           <Inp label="E-MAIL" value={newAluno.email} onChange={v=>setNewAluno(p=>({...p,email:v}))}/>
           <Inp label="OBJETIVO" value={newAluno.objetivo} onChange={v=>setNewAluno(p=>({...p,objetivo:v}))} placeholder="Emagrecimento, Hipertrofia..."/>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
-            {[{l:"Plano",k:"plano",opts:["Basic","Premium"]},{l:"Status",k:"status",opts:["Ativo","Pendente","Bloqueado"]}].map(f=>(
-              <div key={f.k}>
-                <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{f.l.toUpperCase()}</label>
-                <select value={newAluno[f.k]} onChange={e=>setNewAluno(p=>({...p,[f.k]:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
-                  {f.opts.map(o=><option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-            ))}
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>STATUS</label>
+            <select value={newAluno.status} onChange={e=>setNewAluno(p=>({...p,status:e.target.value}))} style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 10px", color:T.text, fontSize:14, outline:"none" }}>
+              {["Ativo","Pendente","Bloqueado"].map(o=><option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
           {addErr&&<p style={{color:T.red,fontSize:13,margin:"4px 0"}}>{addErr}</p>}
           <div style={{ display:"flex", gap:10, marginTop:8 }}>
@@ -2234,10 +2225,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
                     <div style={{ flex:1, minWidth:0 }}>
                       <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{a.nome}</p>
                       <p style={{ margin:"2px 0 0", color:T.text3, fontSize:12 }}>CPF: {a.cpf}</p>
-                      <div style={{ display:"flex", gap:6, marginTop:4, flexWrap:"wrap" }}>
-                        <span style={{ background:T.yellowDim, color:T.yellow, borderRadius:20, padding:"2px 8px", fontSize:10, fontWeight:700 }}>{a.plano||"Basic"}</span>
-                        {a.objetivo && <span style={{ color:T.text3, fontSize:11 }}>{a.objetivo}</span>}
-                      </div>
+                      {a.objetivo && <p style={{ margin:"4px 0 0", color:T.text3, fontSize:11 }}>{a.objetivo}</p>}
                     </div>
                     {/* Status + seta */}
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
@@ -2267,7 +2255,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
                 {v:alunos.length,l:"Total de alunos",icon:"user",color:T.yellow},
                 {v:alunos.filter(a=>a.status==="Ativo").length,l:"Alunos ativos",icon:"check",color:T.green},
                 {v:alunos.filter(a=>a.status==="Pendente").length,l:"Pendências",icon:"bell",color:T.red},
-                {v:alunos.filter(a=>a.plano==="Premium").length,l:"Premium",icon:"star",color:"#9B59B6"},
+                {v:alunos.filter(a=>a.status==="Bloqueado").length,l:"Bloqueados",icon:"logout",color:"#9B59B6"},
               ].map(s=>(
                 <Card key={s.l} style={{ padding:"16px", display:"flex", gap:12, alignItems:"center" }}>
                   <div style={{ width:40, height:40, background:s.color+"22", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center" }}><Ic n={s.icon} size={20} color={s.color}/></div>
@@ -2301,7 +2289,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
               </Card>
             </Sec>
             <Sec title="Configurações">
-              {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 8765-4321"},{l:"Plano Basic",v:"R$ 79,90/mês"},{l:"Plano Premium",v:"R$ 99,90/mês"},{l:"Versão",v:"3.0.0"}].map(c=>(
+              {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 8765-4321"},{l:"Versão",v:"3.0.0"}].map(c=>(
                 <Card key={c.l} style={{ padding:"13px 16px", display:"flex", justifyContent:"space-between", marginBottom:8 }}>
                   <span style={{ color:T.text2, fontSize:14 }}>{c.l}</span>
                   <span style={{ color:T.yellow, fontWeight:700, fontSize:14 }}>{c.v}</span>
@@ -2828,10 +2816,9 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
           <div style={{ width:80, height:80, borderRadius:50, background:T.gold, margin:"0 auto 12px", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 4px 24px ${T.yellow}44`, overflow:"hidden", padding:12, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
           <h2 style={{ margin:"0 0 4px", fontSize:20, fontWeight:900, color:T.text }}>{aluno.nome}</h2>
           <p style={{ margin:"0 0 8px", color:T.text3, fontSize:13 }}>CPF: {aluno.cpf}</p>
-          <YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/>
         </div>
         <InstallBanner installPrompt={installPrompt} forceShow/>
-        {[["Plano",aluno.plano],["Status",aluno.status],["Objetivo",aluno.objetivo||"—"],["Membro desde",aluno.since],["Telefone",aluno.telefone||"—"],["E-mail",aluno.email||"—"]].map(([l,v])=>(
+        {[["Status",aluno.status],["Objetivo",aluno.objetivo||"—"],["Membro desde",aluno.since],["Telefone",aluno.telefone||"—"],["E-mail",aluno.email||"—"]].map(([l,v])=>(
           <Card key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"13px 16px" }}>
             <span style={{ color:T.text3, fontSize:14 }}>{l}</span>
             <span style={{ color:T.text, fontSize:14, fontWeight:600 }}>{v}</span>
@@ -2897,7 +2884,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"32px 20px 20px", paddingTop:"calc(32px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}22` }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:7, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
-            <div><p style={{ margin:0, fontSize:15, fontWeight:900, color:T.text }}>{aluno.nome}</p><YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/></div>
+            <div><p style={{ margin:0, fontSize:15, fontWeight:900, color:T.text }}>{aluno.nome}</p><p style={{ margin:"2px 0 0", fontSize:12, color:T.text3 }}>{aluno.cpf}</p></div>
           </div>
         </div>
         <div style={{ padding:"10px 0", flex:1 }}>
