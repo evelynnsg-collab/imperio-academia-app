@@ -2384,7 +2384,80 @@ const NutricaoAluno = () => {
   );
 };
 
-const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
+// ─── BANNER DE INSTALAÇÃO DO APP (Android com prompt nativo, iOS com passo a passo) ──
+const InstallBanner = ({ installPrompt, forceShow=false }) => {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem("imperio_install_dismissed") === "1"; } catch(e) { return false; }
+  });
+  const [showIosSteps, setShowIosSteps] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
+  const isStandalone = typeof window!=="undefined" && (
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator.standalone === true
+  );
+  const isIOS = typeof navigator!=="undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem("imperio_install_dismissed","1"); } catch(e) {}
+  };
+
+  const handleInstalarAndroid = async () => {
+    if (!installPrompt) return;
+    setInstalling(true);
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch(e) {}
+    setInstalling(false);
+    dismiss();
+  };
+
+  if (isStandalone || (dismissed && !forceShow)) return null;
+  if (!installPrompt && !isIOS) return null; // navegador/desktop sem suporte a instalação
+
+  return (
+    <>
+      <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, border:`1px solid ${T.yellow}44`, borderRadius:16, padding:14, marginBottom:20, display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ width:42, height:42, borderRadius:12, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, overflow:"hidden", padding:6, boxSizing:"border-box" }}>
+          <img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ margin:0, fontSize:13, fontWeight:800, color:T.text }}>Instale o app no seu celular</p>
+          <p style={{ margin:"2px 0 0", fontSize:11, color:T.text3 }}>Acesso rápido, direto da tela inicial</p>
+        </div>
+        <button onClick={()=> isIOS ? setShowIosSteps(true) : handleInstalarAndroid()} disabled={installing}
+          style={{ background:T.gold, border:"none", borderRadius:10, padding:"9px 14px", color:T.bg, fontSize:12, fontWeight:900, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>
+          {installing?"...":"Instalar"}
+        </button>
+        <button onClick={dismiss} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", padding:4, flexShrink:0 }}>
+          <Ic n="x" size={16} color={T.text3}/>
+        </button>
+      </div>
+
+      {showIosSteps && (
+        <Modal title="📲 Instalar no iPhone" onClose={()=>setShowIosSteps(false)}>
+          <p style={{ margin:"0 0 18px", color:T.text2, fontSize:13, lineHeight:1.6 }}>Siga os passos abaixo pra colocar o ícone do IMPÉRIO direto na tela inicial do seu iPhone:</p>
+          {[
+            {n:1, t:"Toque no ícone de Compartilhar", d:"É o quadrado com uma seta pra cima, na barra do Safari."},
+            {n:2, t:'Role e toque em "Adicionar à Tela de Início"', d:"Aparece na lista de opções de compartilhamento."},
+            {n:3, t:'Toque em "Adicionar"', d:"Pronto! O ícone do IMPÉRIO aparece na tela inicial, como um app de verdade."},
+          ].map(s=>(
+            <div key={s.n} style={{ display:"flex", gap:12, marginBottom:16 }}>
+              <span style={{ width:28, height:28, borderRadius:50, background:T.yellowDim, color:T.yellow, fontSize:13, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{s.n}</span>
+              <div>
+                <p style={{ margin:"0 0 2px", fontSize:14, fontWeight:700, color:T.text }}>{s.t}</p>
+                <p style={{ margin:0, fontSize:12, color:T.text3, lineHeight:1.5 }}>{s.d}</p>
+              </div>
+            </div>
+          ))}
+          <Btn onClick={()=>{setShowIosSteps(false); dismiss();}} style={{ width:"100%", color:T.bg }}>Entendi</Btn>
+        </Modal>
+      )}
+    </>
+  );
+};
+
+const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const [tab,setTab]=useState("inicio");
   const [menuOpen,setMenuOpen]=useState(false);
   const [exSel,setExSel]=useState(null);
@@ -2435,6 +2508,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
             ))}
           </div>
         </div>
+        <InstallBanner installPrompt={installPrompt}/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
           {[
             {icon:"dumbbell",label:"Ver Treino",tab:"treinos",color:T.yellow},
@@ -2756,6 +2830,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
           <p style={{ margin:"0 0 8px", color:T.text3, fontSize:13 }}>CPF: {aluno.cpf}</p>
           <YBadge text={`✦ ${aluno.plano}`} color={T.yellow}/>
         </div>
+        <InstallBanner installPrompt={installPrompt} forceShow/>
         {[["Plano",aluno.plano],["Status",aluno.status],["Objetivo",aluno.objetivo||"—"],["Membro desde",aluno.since],["Telefone",aluno.telefone||"—"],["E-mail",aluno.email||"—"]].map(([l,v])=>(
           <Card key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"13px 16px" }}>
             <span style={{ color:T.text3, fontSize:14 }}>{l}</span>
@@ -2879,7 +2954,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout }) => {
 
 // ─── ALUNO APP FIREBASE WRAPPER ───────────────────────────────────────────────
 // Carrega dados do aluno em tempo real do Firestore
-const AlunoAppFirebase = ({ alunoId, onLogout }) => {
+const AlunoAppFirebase = ({ alunoId, onLogout, installPrompt }) => {
   const [aluno, setAluno] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
@@ -2911,19 +2986,32 @@ const AlunoAppFirebase = ({ alunoId, onLogout }) => {
     </div>
   );
 
-  return <AlunoApp aluno={aluno} onUpdateAluno={onUpdateAluno} onLogout={onLogout}/>;
+  return <AlunoApp aluno={aluno} onUpdateAluno={onUpdateAluno} onLogout={onLogout} installPrompt={installPrompt}/>;
 };
 
 export default function App() {
   const [auth,setAuth]   = useState(null);   // null | {role,id,uid}
   const [alunos,setAlunos] = useState([]);
   const [carregando,setCarregando] = useState(true);
+  const [installPrompt,setInstallPrompt] = useState(null);
+
+  // ── Captura o evento de instalação do PWA (Android/Chrome) ───────────────
+  useEffect(() => {
+    const onBeforeInstall = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   // ── Auth state listener ──────────────────────────────────────────────────
   useEffect(() => {
     // Check if admin is already logged in locally
     const localRole = sessionStorage.getItem("imperio_admin");
-    if (localRole === "admin" || localRole === "nutri") {
+    if (localRole === "admin" || localRole === "nutri" || localRole === "dono") {
       setAuth({ role: localRole });
       setCarregando(false);
     }
@@ -3041,6 +3129,7 @@ export default function App() {
     <AlunoAppFirebase
       alunoId={auth.id}
       onLogout={handleLogout}
+      installPrompt={installPrompt}
     />
   );
 }
