@@ -880,8 +880,8 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const ADMIN_SENHA = "imperioadmin@2026";
-  const NUTRI_SENHA = "beatriznutri@2026";
+  const ADMIN_SENHA = "admin@123";
+  const NUTRI_SENHA = "nutri@123";
 
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
@@ -2020,6 +2020,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [newAluno,setNewAluno]=useState({nome:"",cpf:"",senha:"",telefone:"",email:"",nascimento:"",objetivo:"",obs:"",status:"Ativo",plano:"Basic",since:new Date().toLocaleDateString("pt-BR",{month:"short",year:"numeric"}),treinos:{"Treino A":[]},cardapio:{}});
   const [addLoading,setAddLoading]=useState(false);
   const [addErr,setAddErr]=useState("");
+  const [backupLoading,setBackupLoading]=useState(false);
+  const [backupMsg,setBackupMsg]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2051,6 +2053,49 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       setAddErr("Erro ao cadastrar: "+e.message);
     }
     setAddLoading(false);
+  };
+
+  const exportarBackup = async () => {
+    setBackupLoading(true); setBackupMsg("");
+    try {
+      // Exercícios customizados pelo admin (se houver)
+      let bibliotecaCustom = [];
+      try {
+        const bibSnap = await getDocs(collection(db,"biblioteca_custom"));
+        bibliotecaCustom = bibSnap.docs.map(d=>d.data());
+      } catch(e) {}
+      // Vídeos da nutricionista
+      let nutriVideos = [];
+      try {
+        const videosSnap = await getDoc(doc(db,"nutri_config","videos"));
+        if (videosSnap.exists()) nutriVideos = videosSnap.data().videos || [];
+      } catch(e) {}
+
+      const backup = {
+        app: "IMPÉRIO Academia",
+        exportado_em: new Date().toISOString(),
+        exportado_em_br: new Date().toLocaleString("pt-BR"),
+        total_alunos: alunos.length,
+        alunos,
+        biblioteca_custom: bibliotecaCustom,
+        nutri_videos: nutriVideos,
+      };
+      const dataStr = JSON.stringify(backup, null, 2);
+      const blob = new Blob([dataStr], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `imperio_backup_dados_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setBackupMsg(`✅ Backup gerado! ${alunos.length} aluno${alunos.length!==1?"s":""} exportado${alunos.length!==1?"s":""}.`);
+    } catch(e) {
+      setBackupMsg("❌ Erro ao gerar backup: "+e.message);
+    }
+    setBackupLoading(false);
+    setTimeout(()=>setBackupMsg(""), 5000);
   };
 
   const ADMIN_TABS=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
@@ -2207,14 +2252,26 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
 
         {/* ── CONFIG ── */}
         {subTab==="config" && (
-          <Sec title="Configurações">
-            {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 8765-4321"},{l:"Plano Basic",v:"R$ 79,90/mês"},{l:"Plano Premium",v:"R$ 99,90/mês"},{l:"Versão",v:"3.0.0"}].map(c=>(
-              <Card key={c.l} style={{ padding:"13px 16px", display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-                <span style={{ color:T.text2, fontSize:14 }}>{c.l}</span>
-                <span style={{ color:T.yellow, fontWeight:700, fontSize:14 }}>{c.v}</span>
+          <div>
+            <Sec title="Backup dos dados">
+              <Card style={{ padding:16, marginBottom:8, border:`1px solid ${T.yellow}33` }}>
+                <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:800, color:T.text }}>📦 Exportar backup completo</p>
+                <p style={{ margin:"0 0 14px", fontSize:12, color:T.text3, lineHeight:1.5 }}>Baixa um arquivo .json com todos os alunos (cadastro, treinos, cardápios, fotos de evolução, avaliações), a biblioteca de exercícios personalizada e os vídeos da nutricionista. Guarde esse arquivo em local seguro (Google Drive, e-mail, etc).</p>
+                {backupMsg && <div style={{ background:backupMsg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:10, color:backupMsg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{backupMsg}</div>}
+                <button onClick={exportarBackup} disabled={backupLoading} style={{ width:"100%", background:backupLoading?"#333":T.gold, border:"none", borderRadius:12, padding:14, color:T.bg, fontSize:14, fontWeight:900, cursor:backupLoading?"not-allowed":"pointer", opacity:backupLoading?0.7:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  <Ic n="save" size={16} color={T.bg}/> {backupLoading?"Gerando backup...":"Exportar backup (.json)"}
+                </button>
               </Card>
-            ))}
-          </Sec>
+            </Sec>
+            <Sec title="Configurações">
+              {[{l:"Nome da academia",v:"IMPÉRIO"},{l:"WhatsApp",v:"(11) 9 8765-4321"},{l:"Plano Basic",v:"R$ 79,90/mês"},{l:"Plano Premium",v:"R$ 99,90/mês"},{l:"Versão",v:"3.0.0"}].map(c=>(
+                <Card key={c.l} style={{ padding:"13px 16px", display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                  <span style={{ color:T.text2, fontSize:14 }}>{c.l}</span>
+                  <span style={{ color:T.yellow, fontWeight:700, fontSize:14 }}>{c.v}</span>
+                </Card>
+              ))}
+            </Sec>
+          </div>
         )}
       </div>
     </div>
