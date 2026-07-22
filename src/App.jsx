@@ -2031,6 +2031,9 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [addErr,setAddErr]=useState("");
   const [backupLoading,setBackupLoading]=useState(false);
   const [backupMsg,setBackupMsg]=useState("");
+  const [showBackupAuth,setShowBackupAuth]=useState(false);
+  const [backupSenha,setBackupSenha]=useState("");
+  const [backupAuthErr,setBackupAuthErr]=useState("");
 
   if(alunoSel) return (
     <AlunoDetalhe
@@ -2062,6 +2065,19 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       setAddErr("Erro ao cadastrar: "+e.message);
     }
     setAddLoading(false);
+  };
+
+  const BACKUP_SENHA = "Zaxuwo1@";
+
+  const confirmarSenhaEExportar = () => {
+    if (backupSenha !== BACKUP_SENHA) {
+      setBackupAuthErr("Senha incorreta.");
+      return;
+    }
+    setShowBackupAuth(false);
+    setBackupSenha("");
+    setBackupAuthErr("");
+    exportarBackup();
   };
 
   const exportarBackup = async () => {
@@ -2113,6 +2129,17 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
       <Watermark/>
+      {showBackupAuth && (
+        <Modal title="🔒 Confirmar exportação" onClose={()=>{setShowBackupAuth(false);setBackupSenha("");setBackupAuthErr("");}}>
+          <p style={{ margin:"0 0 14px", color:T.text2, fontSize:13, lineHeight:1.5 }}>Digite a senha para autorizar o download do backup com os dados de todos os alunos.</p>
+          <Inp label="SENHA" type="password" value={backupSenha} onChange={v=>{setBackupSenha(v);setBackupAuthErr("");}} placeholder="••••••••"/>
+          {backupAuthErr && <p style={{ color:T.red, fontSize:13, margin:"4px 0 8px" }}>{backupAuthErr}</p>}
+          <div style={{ display:"flex", gap:10, marginTop:8 }}>
+            <Btn onClick={()=>{setShowBackupAuth(false);setBackupSenha("");setBackupAuthErr("");}} outline style={{ flex:1 }}>Cancelar</Btn>
+            <Btn onClick={confirmarSenhaEExportar} style={{ flex:2, color:T.bg }}>🔓 Confirmar e baixar</Btn>
+          </div>
+        </Modal>
+      )}
       {showAdd && (
         <Modal title="Cadastrar novo aluno" onClose={()=>setShowAdd(false)}>
           <Inp label="NOME COMPLETO *" value={newAluno.nome} onChange={v=>setNewAluno(p=>({...p,nome:v}))}/>
@@ -2268,7 +2295,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
                 <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:800, color:T.text }}>📦 Exportar backup completo</p>
                 <p style={{ margin:"0 0 14px", fontSize:12, color:T.text3, lineHeight:1.5 }}>Baixa um arquivo .json com todos os alunos (cadastro, treinos, cardápios, fotos de evolução, avaliações), a biblioteca de exercícios personalizada e os vídeos da nutricionista. Guarde esse arquivo em local seguro (Google Drive, e-mail, etc).</p>
                 {backupMsg && <div style={{ background:backupMsg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:10, color:backupMsg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{backupMsg}</div>}
-                <button onClick={exportarBackup} disabled={backupLoading} style={{ width:"100%", background:backupLoading?"#333":T.gold, border:"none", borderRadius:12, padding:14, color:T.bg, fontSize:14, fontWeight:900, cursor:backupLoading?"not-allowed":"pointer", opacity:backupLoading?0.7:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <button onClick={()=>{setShowBackupAuth(true);setBackupSenha("");setBackupAuthErr("");}} disabled={backupLoading} style={{ width:"100%", background:backupLoading?"#333":T.gold, border:"none", borderRadius:12, padding:14, color:T.bg, fontSize:14, fontWeight:900, cursor:backupLoading?"not-allowed":"pointer", opacity:backupLoading?0.7:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
                   <Ic n="save" size={16} color={T.bg}/> {backupLoading?"Gerando backup...":"Exportar backup (.json)"}
                 </button>
               </Card>
