@@ -882,6 +882,8 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
 
   const ADMIN_SENHA = "admin@123";
   const NUTRI_SENHA = "nutri@123";
+  const DONO_LOGIN = "academiaimperio";
+  const DONO_SENHA = "imperio@2026";
 
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
@@ -898,6 +900,13 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
     if(login.trim()==="nutri"){
       if(senha === NUTRI_SENHA){ setAuthAdmin("nutri"); }
       else { setErr("Senha da nutricionista incorreta."); }
+      setLoading(false); return;
+    }
+
+    // ── Login dono da academia (acesso restrito) ────────────────────────────
+    if(login.trim()===DONO_LOGIN){
+      if(senha === DONO_SENHA){ setAuthAdmin("dono"); }
+      else { setErr("Senha incorreta."); }
       setLoading(false); return;
     }
 
@@ -2013,7 +2022,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
 };
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
-const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout }) => {
+const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout, role="admin" }) => {
   const [subTab,setSubTab]=useState("cadastros");  const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -2098,7 +2107,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     setTimeout(()=>setBackupMsg(""), 5000);
   };
 
-  const ADMIN_TABS=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const ADMIN_TABS_ALL=[{id:"cadastros",l:"👥 Cadastros"},{id:"biblioteca",l:"📚 Biblioteca"},{id:"dashboard",l:"📊 Dashboard"},{id:"config",l:"⚙️ Config"}];
+  const ADMIN_TABS = role==="dono" ? ADMIN_TABS_ALL.filter(t=>t.id!=="config") : ADMIN_TABS_ALL;
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
@@ -2132,7 +2142,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       {/* Header */}
       <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"20px 16px 0", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:40 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-          <div><p style={{ margin:0, color:T.yellow, fontSize:11, fontWeight:700, letterSpacing:1 }}>PAINEL ADMIN</p><h1 style={{ margin:"2px 0 0", fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</h1></div>
+          <div><p style={{ margin:0, color:T.yellow, fontSize:11, fontWeight:700, letterSpacing:1 }}>{role==="dono"?"PAINEL DA ACADEMIA":"PAINEL ADMIN"}</p><h1 style={{ margin:"2px 0 0", fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</h1></div>
           <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"8px 16px", color:T.red, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
             <Ic n="logout" size={14} color={T.red}/>Sair
           </button>
@@ -2251,7 +2261,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
         )}
 
         {/* ── CONFIG ── */}
-        {subTab==="config" && (
+        {subTab==="config" && role!=="dono" && (
           <div>
             <Sec title="Backup dos dados">
               <Card style={{ padding:16, marginBottom:8, border:`1px solid ${T.yellow}33` }}>
@@ -2920,9 +2930,9 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // ── Carrega alunos em tempo real quando admin logado ─────────────────────
+  // ── Carrega alunos em tempo real quando admin ou dono logado ─────────────
   useEffect(() => {
-    if (!auth || auth.role !== "admin") return;
+    if (!auth || (auth.role !== "admin" && auth.role !== "dono")) return;
     const unsub = onSnapshot(collection(db,"alunos"), snap => {
       setAlunos(snap.docs.map(d => d.data()));
     });
@@ -2979,7 +2989,7 @@ export default function App() {
 
   if (!auth) return <LoginScreen onLogin={handleLogin} setAuthAdmin={setAuthAdmin} />;
 
-  if (auth.role === "admin") return (
+  if (auth.role === "admin" || auth.role === "dono") return (
     <AdminPanel
       alunos={alunos}
       setAlunos={setAlunos}
@@ -2987,6 +2997,7 @@ export default function App() {
       onUpdateAluno={updateAluno}
       onDeleteAluno={removerAluno}
       onLogout={handleLogout}
+      role={auth.role}
     />
   );
 
