@@ -373,6 +373,7 @@ const T = {
   yellow:"#F5C518",yellowDim:"#F5C51833",
   red:"#E31B1B",redDim:"#E31B1B22",
   green:"#22C55E",greenDim:"#22C55E22",
+  blue:"#3B82F6",purple:"#9B59B6",
   text:"#FFFFFF",text2:"#BBBBBB",text3:"#777777",
   gold:"linear-gradient(135deg,#F5C518,#FFD700)",
 };
