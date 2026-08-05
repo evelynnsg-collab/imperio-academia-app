@@ -665,7 +665,7 @@ const BIBLIOTECA_FULL = [
 {id:"br_cadeira_adutora",nome:"Cadeira adutora",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-adutora.jpg"},
 {id:"br_adu__o_na_polia",nome:"Adução na polia",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/aducao-na-polia.jpg"},
 {id:"br_afundo_lateral",nome:"Afundo lateral",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/afundo-lateral.jpg"},
-{id:"br_cadeira_abdutora",nome:"Cadeira abdutora",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-abdutora.jpg"},
+{id:"br_cadeira_abdutora_adutores",nome:"Cadeira abdutora",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-abdutora.jpg"},
 {id:"br_abdu__o_na_polia",nome:"Abdução na polia",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abducao-na-polia.jpg"},
 {id:"br_caminhada_lateral_com_el_stico",nome:"Caminhada lateral com elástico",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/caminhada-lateral-com-elastico.jpg"},
 {id:"br_eleva__o_lateral_de_perna",nome:"Elevação lateral de perna",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-lateral-de-perna.jpg"},
@@ -686,9 +686,25 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
   const [busca, setBusca] = useState("");
   const [exSel, setExSel] = useState(null);
   const [editando, setEditando] = useState(null); // { series, reps, descanso, obs }
+  const [customExs, setCustomExs] = useState([]);
+  const [fotoCustom, setFotoCustom] = useState({});
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "biblioteca_custom"));
+        const exs = snap.docs.map(d => d.data());
+        const fotos = {};
+        exs.forEach(e => { if(e._fotoBase64) fotos[e.id] = e._fotoBase64; });
+        setCustomExs(exs.filter(e => !e._deleted));
+        setFotoCustom(fotos);
+      } catch(e) { /* offline ou sem permissão */ }
+    })();
+  }, []);
+
+  const todos = [...BIBLIOTECA, ...customExs.filter(c => !BIBLIOTECA.find(b => b.id === c.id))];
   const grupos = ["Todos", ...Object.keys(GRUPOS_CORES)];
-  const filtrados = BIBLIOTECA.filter(ex => {
+  const filtrados = todos.map(ex => fotoCustom[ex.id] ? {...ex, img_url:fotoCustom[ex.id]} : ex).filter(ex => {
     const matchGrupo = grupoFiltro === "Todos" || ex.grupo === grupoFiltro;
     const matchBusca = !busca || ex.nome.toLowerCase().includes(busca.toLowerCase()) || ex.grupo.toLowerCase().includes(busca.toLowerCase()) || ex.principais.some(p => p.toLowerCase().includes(busca.toLowerCase()));
     return matchGrupo && matchBusca;
@@ -718,7 +734,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
             <div style={{ display:"flex", gap:10, marginTop:16 }}>
               <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
-              <Btn onClick={()=>{onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
                 <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
               </Btn>
             </div>
