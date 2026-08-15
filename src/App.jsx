@@ -2650,6 +2650,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         const tipoLabel = isTri ? "TRI-SET" : "BI-SET";
         const roundConcluida = idx >= items.length;
         const atual = items[Math.min(idx, items.length-1)];
+        const descansoTotalGrupo = items.reduce((soma,i)=>soma+parseDescanso(i.descanso||"0s"),0);
 
         const concluirAtual = () => {
           const novoIdx = idx + 1;
@@ -2658,7 +2659,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
           } else if (round < totalRounds) {
             setSupersetSel(p => ({ ...p, idx: novoIdx })); // marca a rodada como concluída visualmente
             setTimerLabel(`${tipoLabel} — rodada ${round}/${totalRounds} concluída`);
-            setTimerSeg(parseDescanso(items[items.length-1].descanso || "60s"));
+            setTimerSeg(descansoTotalGrupo || 60);
           } else {
             setDone(p => [...p, ...items.map(i=>i.id).filter(id=>!p.includes(id))]);
             setSupersetSel(null);
@@ -2679,6 +2680,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
               <div>
                 <p style={{ margin:0, fontSize:12, fontWeight:900, color:T.yellow, letterSpacing:0.5 }}>🔗 {tipoLabel}</p>
                 <p style={{ margin:"3px 0 0", fontSize:18, fontWeight:900, color:T.text }}>Rodada {round}/{totalRounds}</p>
+                <p style={{ margin:"3px 0 0", fontSize:11, color:T.text3 }}>Descanso da rodada: {Math.floor(descansoTotalGrupo/60)>0?`${Math.floor(descansoTotalGrupo/60)}min `:""}{descansoTotalGrupo%60}s</p>
               </div>
               {round>1 && <button onClick={resetarGrupo} style={{ background:"transparent", border:`1px solid ${T.border}`, borderRadius:8, padding:"6px 12px", color:T.text3, fontSize:12, cursor:"pointer" }}>↺ Resetar</button>}
             </div>
