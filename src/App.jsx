@@ -1012,8 +1012,8 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"94vh", overflowY:"auto" }}>
-        <div style={{ padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
+      <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+        <div style={{ padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`, background:T.card, flexShrink:0 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <span style={{ fontSize:16, fontWeight:800, color:T.text }}>📚 Biblioteca de Exercícios</span>
             <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
@@ -1032,7 +1032,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             ))}
           </div>
         </div>
-        <div style={{ padding:"12px 16px 40px" }}>
+        <div style={{ padding:"12px 16px 40px", overflowY:"auto", flex:1 }}>
           <p style={{ color:T.text3, fontSize:12, marginBottom:12 }}>{filtrados.length} exercícios encontrados</p>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:10 }}>
             {filtrados.map(ex=>{
