@@ -827,13 +827,13 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
         </div>
         <div style={{ padding:"12px 16px 40px" }}>
           <p style={{ color:T.text3, fontSize:12, marginBottom:12 }}>{filtrados.length} exercícios encontrados</p>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:10 }}>
             {filtrados.map(ex=>{
               const cor = GRUPOS_CORES[ex.grupo] || T.yellow;
               return (
                 <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
                   <div style={{ position:"relative" }}>
-                    <div style={{height:110,overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} style={{width:"100%",height:110,objectFit:"cover"}}/></div>
+                    <div style={{aspectRatio:"1",overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
                     <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
                   </div>
                   <div style={{ padding:"10px 10px 12px" }}>
@@ -964,6 +964,26 @@ const LoginScreen = ({ onLogin, setAuthAdmin }) => {
   );
 };
 
+// Agrupa exercícios consecutivos que compartilham supersetId (bi-set/tri-set)
+const agruparExercicios = (list) => {
+  const grupos = [];
+  let i = 0;
+  while (i < list.length) {
+    const ex = list[i];
+    if (ex.supersetId) {
+      const items = [ex];
+      let j = i + 1;
+      while (j < list.length && list[j].supersetId === ex.supersetId) { items.push(list[j]); j++; }
+      grupos.push({ supersetId: ex.supersetId, items });
+      i = j;
+    } else {
+      grupos.push({ supersetId: null, items: [ex] });
+      i++;
+    }
+  }
+  return grupos;
+};
+
 // ─── ADMIN: ALUNO DETALHE ─────────────────────────────────────────────────────
 const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => {
   const [dados,setDados]=useState({...aluno});
@@ -1007,6 +1027,40 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
     setEditEx(null);
   };
   const deleteEx = (id) => setTreinos(p=>({...p,[treinoAtivo]:(p[treinoAtivo]||[]).filter(e=>e.id!==id)}));
+  // Reordenar (move o grupo/exercício inteiro pra cima ou pra baixo, mantendo bi-set/tri-set juntos)
+  const moveGrupo = (grupoIdx, dir) => {
+    setTreinos(p => {
+      const list = [...(p[treinoAtivo]||[])];
+      const grupos = agruparExercicios(list);
+      const novoIdx = grupoIdx + dir;
+      if (novoIdx < 0 || novoIdx >= grupos.length) return p;
+      [grupos[grupoIdx], grupos[novoIdx]] = [grupos[novoIdx], grupos[grupoIdx]];
+      return { ...p, [treinoAtivo]: grupos.flatMap(g => g.items) };
+    });
+  };
+  // Bi-set / Tri-set
+  const [modoAgrupar, setModoAgrupar] = useState(false);
+  const [selAgrupar, setSelAgrupar] = useState([]);
+  const toggleSelAgrupar = (id) => {
+    setSelAgrupar(p => p.includes(id) ? p.filter(x=>x!==id) : (p.length<3 ? [...p, id] : p));
+  };
+  const confirmarAgrupar = () => {
+    if (selAgrupar.length < 2) return;
+    const supersetId = "ss_" + Date.now();
+    setTreinos(p => {
+      const list = [...(p[treinoAtivo]||[])];
+      const posOriginal = list.findIndex(e => e.id === selAgrupar[0]);
+      const antes = list.slice(0, posOriginal).filter(e => !selAgrupar.includes(e.id));
+      const resto = list.filter(e => !selAgrupar.includes(e.id));
+      const marcados = selAgrupar.map(id => list.find(e=>e.id===id)).filter(Boolean).map(e => ({...e, supersetId}));
+      const novaLista = [...resto.slice(0, antes.length), ...marcados, ...resto.slice(antes.length)];
+      return { ...p, [treinoAtivo]: novaLista };
+    });
+    setSelAgrupar([]); setModoAgrupar(false);
+  };
+  const desagrupar = (supersetId) => {
+    setTreinos(p => ({ ...p, [treinoAtivo]: (p[treinoAtivo]||[]).map(e => e.supersetId===supersetId ? {...e, supersetId:null} : e) }));
+  };
 
   // ── helpers cardapio
   const refeicoes = REFEICOES_DEFAULT;
@@ -1129,13 +1183,27 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
               )}
             </div>
 
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
               <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{treinoAtivo} <span style={{ color:T.text3, fontWeight:400, fontSize:13 }}>({exList.length} exercícios)</span></span>
               <div style={{ display:"flex", gap:8 }}>
+                {exList.length>=2 && (
+                  <Btn small onClick={()=>{ setModoAgrupar(m=>!m); setSelAgrupar([]); }} outline={!modoAgrupar} style={modoAgrupar?{ color:T.bg }:{}}>
+                    {modoAgrupar ? "✕ Cancelar" : "🔗 Bi/Tri-set"}
+                  </Btn>
+                )}
                 <Btn small onClick={()=>setShowBiblioteca(true)} style={{ color:T.bg }}><Ic n="search" size={13} color={T.bg}/>Biblioteca</Btn>
                 <Btn small onClick={()=>setEditEx({id:0,nome:"",series:"3",reps:"12",descanso:"60s",obs:"",img:"",video:"",musculo:""})} outline><Ic n="plus" size={13} color={T.yellow}/>Manual</Btn>
               </div>
             </div>
+
+            {modoAgrupar && (
+              <div style={{ background:T.yellowDim, border:`1px solid ${T.yellow}`, borderRadius:10, padding:"10px 12px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontSize:12, color:T.text, fontWeight:700 }}>Toque em 2 ou 3 exercícios da lista abaixo pra agrupar ({selAgrupar.length}/3)</span>
+                <button disabled={selAgrupar.length<2} onClick={confirmarAgrupar} style={{ background:selAgrupar.length<2?T.border:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:selAgrupar.length<2?T.text3:T.bg, fontWeight:800, fontSize:12, cursor:selAgrupar.length<2?"default":"pointer" }}>
+                  Confirmar {selAgrupar.length===3?"Tri-set":"Bi-set"}
+                </button>
+              </div>
+            )}
 
             {exList.length===0 ? (
               <div style={{ textAlign:"center", padding:"40px 16px", color:T.text3 }}>
@@ -1152,27 +1220,55 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
                 </div>
               </div>
             ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {exList.map(ex=>(
-                  <div key={ex.id} style={{ background:T.card, borderRadius:14, border:`1px solid ${T.border}`, overflow:"hidden", display:"flex" }}>
-                    <div style={{ width:72, height:72, flexShrink:0, overflow:"hidden" }}>
-                      {ex.img
-                        ? <img src={ex.img} alt={ex.nome} style={{ width:72, height:72, objectFit:"cover", display:"block" }}/>
-                        : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} style={{width:72,height:72}}/>
-                      }
-                    </div>
-                    <div style={{ flex:1, padding:"10px 12px" }}>
-                      <p style={{ margin:"0 0 3px", fontSize:14, fontWeight:700, color:T.text }}>{ex.nome}</p>
-                      <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}x{ex.reps} · Descanso {ex.descanso}</p>
-                      {ex.obs && <p style={{ margin:"3px 0 0", color:T.text3, fontSize:11, fontStyle:"italic" }}>{ex.obs}</p>}
-                    </div>
-                    <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", gap:6, padding:"8px 10px", flexShrink:0 }}>
-                      <button onClick={()=>setEditEx({...ex})} style={{ background:T.yellowDim, border:"none", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="edit" size={13} color={T.yellow}/></button>
-                      <button onClick={()=>deleteEx(ex.id)} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="trash" size={13} color={T.red}/></button>
-                    </div>
+              (() => {
+                const grupos = agruparExercicios(exList);
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                    {grupos.map((g, gi) => (
+                      <div key={g.supersetId || g.items[0].id}>
+                        {g.items.length>1 && (
+                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5, padding:"0 2px" }}>
+                            <span style={{ fontSize:11, fontWeight:900, color:T.yellow, letterSpacing:0.5 }}>
+                              🔗 {g.items.length===2 ? "BI-SET" : "TRI-SET"} — sem descanso entre os exercícios
+                            </span>
+                            <button onClick={()=>desagrupar(g.supersetId)} style={{ background:"transparent", border:"none", color:T.text3, fontSize:11, cursor:"pointer", textDecoration:"underline" }}>Desagrupar</button>
+                          </div>
+                        )}
+                        <div style={{ display:"flex", flexDirection:"column", gap:g.items.length>1?6:0, border:g.items.length>1?`1px dashed ${T.yellow}77`:"none", borderRadius:16, padding:g.items.length>1?7:0 }}>
+                          {g.items.map(ex => (
+                            <div key={ex.id} onClick={()=>modoAgrupar && toggleSelAgrupar(ex.id)}
+                              style={{ background:selAgrupar.includes(ex.id)?T.yellowDim:T.card, borderRadius:14, border:`1px solid ${selAgrupar.includes(ex.id)?T.yellow:T.border}`, overflow:"hidden", display:"flex", cursor:modoAgrupar?"pointer":"default" }}>
+                              <div style={{ width:72, height:72, flexShrink:0, overflow:"hidden" }}>
+                                {ex.img
+                                  ? <img src={ex.img} alt={ex.nome} style={{ width:72, height:72, objectFit:"cover", display:"block" }}/>
+                                  : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} style={{width:72,height:72}}/>
+                                }
+                              </div>
+                              <div style={{ flex:1, padding:"10px 12px" }}>
+                                <p style={{ margin:"0 0 3px", fontSize:14, fontWeight:700, color:T.text }}>{ex.nome}</p>
+                                <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}x{ex.reps} · Descanso {ex.descanso}</p>
+                                {ex.obs && <p style={{ margin:"3px 0 0", color:T.text3, fontSize:11, fontStyle:"italic" }}>{ex.obs}</p>}
+                              </div>
+                              {!modoAgrupar && (
+                                <div style={{ display:"flex", alignItems:"center", gap:2, padding:"8px 8px", flexShrink:0 }}>
+                                  <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                                    <button onClick={(e)=>{ e.stopPropagation(); moveGrupo(gi,-1); }} disabled={gi===0} style={{ background:T.card2, border:"none", borderRadius:6, width:22, height:18, display:"flex", alignItems:"center", justifyContent:"center", cursor:gi===0?"default":"pointer", opacity:gi===0?0.3:1, fontSize:10, color:T.text3, lineHeight:1 }}>▲</button>
+                                    <button onClick={(e)=>{ e.stopPropagation(); moveGrupo(gi,1); }} disabled={gi===grupos.length-1} style={{ background:T.card2, border:"none", borderRadius:6, width:22, height:18, display:"flex", alignItems:"center", justifyContent:"center", cursor:gi===grupos.length-1?"default":"pointer", opacity:gi===grupos.length-1?0.3:1, fontSize:10, color:T.text3, lineHeight:1 }}>▼</button>
+                                  </div>
+                                  <div style={{ display:"flex", flexDirection:"column", gap:6, marginLeft:4 }}>
+                                    <button onClick={(e)=>{ e.stopPropagation(); setEditEx({...ex}); }} style={{ background:T.yellowDim, border:"none", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="edit" size={13} color={T.yellow}/></button>
+                                    <button onClick={(e)=>{ e.stopPropagation(); deleteEx(ex.id); }} style={{ background:T.redDim, border:"none", borderRadius:8, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="trash" size={13} color={T.red}/></button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()
             )}
           </div>
         )}
@@ -1480,7 +1576,7 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
             <p style={{ color:T.text3, fontSize:14, margin:0 }}>Nenhuma foto ainda</p>
             <p style={{ color:T.text3, fontSize:12, margin:"4px 0 0" }}>Adicione a primeira foto de evolução do aluno</p>
           </div>
-        : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+        : <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:10, marginBottom:20 }}>
             {fotos.slice().reverse().map((f,i) => (
               <div key={f.path||i} style={{ background:T.card2, borderRadius:12, overflow:"hidden", border:`1px solid ${T.border}` }}>
                 <div style={{ position:"relative", height:160 }}>
@@ -1780,7 +1876,7 @@ const BibliotecaAdmin = () => {
 
       <p style={{ color:T.text3, fontSize:12, marginBottom:10 }}>{filtrados.length} resultados — toque para ver ou editar</p>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:10 }}>
         {filtrados.map(ex => {
           const cor = GRUPOS_CORES[ex.grupo] || T.yellow;
           const isCustom = !!customExs.find(e => e.id === ex.id);
@@ -1789,10 +1885,10 @@ const BibliotecaAdmin = () => {
             <div key={ex.id} onClick={() => { setExSel(ex); setModo("ver"); }}
               style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${isCustom?T.yellow:T.border}`, cursor:"pointer", position:"relative" }}>
               {/* Imagem */}
-              <div style={{ height:110, overflow:"hidden", background:T.bg2, position:"relative" }}>
+              <div style={{ aspectRatio:"1", overflow:"hidden", background:T.bg2, position:"relative" }}>
                 {fotoCustomizada
-                  ? <img src={fotoCustomizada} alt={ex.nome} style={{ width:"100%", height:110, objectFit:"cover" }}/>
-                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} style={{ width:"100%", height:110, objectFit:"cover" }}/>
+                  ? <img src={fotoCustomizada} alt={ex.nome} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
                 }
                 {/* Badge grupo */}
                 <div style={{ position:"absolute", top:6, left:6 }}>
@@ -2736,39 +2832,50 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
           {exList.length===0 ? (
             <div style={{ textAlign:"center", paddingTop:40, color:T.text3 }}><p style={{ fontSize:40, marginBottom:12 }}>🏋️</p><p>Nenhum exercício nesta ficha ainda.</p></div>
           ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              {exList.map(ex=>{
-                const d=done.includes(ex.id);
-                const sf=seriesDone[ex.id]||0;
-                const ts=parseInt(String(ex.series).split("-")[0])||3;
-                const pct=sf/ts;
-                return (
-                  <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
-                    <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
-                      {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:80,height:80}}/>}
-                    </div>
-                    <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
-                      <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
-                      {ex.musculo && <p style={{ margin:0, color:T.text3, fontSize:11 }}>{ex.musculo}</p>}
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}×{ex.reps}</p>
-                        {sf>0 && !d && (
-                          <span style={{ fontSize:11, color:T.yellow, fontWeight:700 }}>{sf}/{ts} séries</span>
-                        )}
-                      </div>
-                      {/* Barra de progresso de séries */}
-                      {sf>0 && (
-                        <div style={{ height:3, background:T.border, borderRadius:50, marginTop:3 }}>
-                          <div style={{ height:"100%", width:`${pct*100}%`, background:d?T.green:T.gold, borderRadius:50, transition:"width 0.4s" }}/>
+            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              {agruparExercicios(exList).map(g => (
+                <div key={g.supersetId || g.items[0].id}>
+                  {g.items.length>1 && (
+                    <p style={{ margin:"0 0 5px 2px", fontSize:11, fontWeight:900, color:T.yellow, letterSpacing:0.5 }}>
+                      🔗 {g.items.length===2 ? "BI-SET" : "TRI-SET"} — faça em sequência, sem descanso
+                    </p>
+                  )}
+                  <div style={{ display:"flex", flexDirection:"column", gap:g.items.length>1?8:0, border:g.items.length>1?`1px dashed ${T.yellow}77`:"none", borderRadius:18, padding:g.items.length>1?8:0 }}>
+                    {g.items.map(ex => {
+                      const d=done.includes(ex.id);
+                      const sf=seriesDone[ex.id]||0;
+                      const ts=parseInt(String(ex.series).split("-")[0])||3;
+                      const pct=sf/ts;
+                      return (
+                        <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
+                          <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
+                            {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:80,height:80}}/>}
+                          </div>
+                          <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
+                            <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
+                            {ex.musculo && <p style={{ margin:0, color:T.text3, fontSize:11 }}>{ex.musculo}</p>}
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <p style={{ margin:0, color:T.text3, fontSize:12 }}>{ex.series}×{ex.reps}</p>
+                              {sf>0 && !d && (
+                                <span style={{ fontSize:11, color:T.yellow, fontWeight:700 }}>{sf}/{ts} séries</span>
+                              )}
+                            </div>
+                            {/* Barra de progresso de séries */}
+                            {sf>0 && (
+                              <div style={{ height:3, background:T.border, borderRadius:50, marginTop:3 }}>
+                                <div style={{ height:"100%", width:`${pct*100}%`, background:d?T.green:T.gold, borderRadius:50, transition:"width 0.4s" }}/>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", paddingRight:12 }}>
+                            {d ? <Ic n="check" size={20} color={T.green}/> : sf>0 ? <span style={{ fontSize:16 }}>🔥</span> : <Ic n="chevR" size={16} color={T.text3}/>}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", paddingRight:12 }}>
-                      {d ? <Ic n="check" size={20} color={T.green}/> : sf>0 ? <span style={{ fontSize:16 }}>🔥</span> : <Ic n="chevR" size={16} color={T.text3}/>}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -2846,7 +2953,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         {(aluno.fotos_evolucao||[]).length > 0 && (
           <div style={{ marginTop:20 }}>
             <p style={{ margin:"0 0 12px", fontSize:15, fontWeight:800, color:T.text }}>📸 Minha evolução</p>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:10 }}>
               {(aluno.fotos_evolucao||[]).slice().reverse().map((f,i)=>(
                 <div key={f.path||i} style={{ background:T.card2, borderRadius:12, overflow:"hidden", border:`1px solid ${T.border}` }}>
                   <img src={f.url} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }}/>
