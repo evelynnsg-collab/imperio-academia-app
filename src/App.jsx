@@ -3004,7 +3004,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
       <Watermark/>
       {menuOpen && <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"#000C", zIndex:40, maxWidth:430, margin:"0 auto" }}/>}
       {/* Sidebar */}
-      <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"max(-290px,calc(50vw - 505px))", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+      <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"calc(max(0px,calc(50vw - 215px)) - 260px)", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
         <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"32px 20px 20px", paddingTop:"calc(32px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}22` }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:7, boxSizing:"border-box" }}><img src={LOGO_URL} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
