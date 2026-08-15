@@ -176,7 +176,7 @@ const EmblemaConquista = () => {
     louroDir.push(<g key={"ld"+i}>{folha(138+xOff, y, 60-t*100)}</g>);
   }
   return (
-    <svg width="220" height="190" viewBox="-20 0 220 190" style={{ display:"block", margin:"0 auto" }}>
+    <svg width="172" height="148" viewBox="-20 0 220 190" style={{ display:"block", margin:"0 auto" }}>
       <defs>
         <radialGradient id="glowGrad" cx="50%" cy="45%" r="55%">
           <stop offset="0%" stopColor="#F5C518" stopOpacity="0.55"/>
@@ -215,57 +215,58 @@ const IconCalendarSm = ({ color="#22C55E", size=20 }) => (
 );
 
 const ShareCard = ({ innerRef, nomeTreino, qtdExercicios, dataStr }) => (
-  <div ref={innerRef} style={{ position:"fixed", top:-9999, left:-9999, width:400, background:"radial-gradient(circle at 85% 0%, #1A1500 0%, #0A0A0A 55%)", padding:"36px 28px 30px", fontFamily:"system-ui,-apple-system,sans-serif", border:`3px solid ${T.yellow}`, borderRadius:28, boxSizing:"border-box", textAlign:"center", boxShadow:`inset 0 0 40px #F5C51822` }}>
+  <div ref={innerRef} style={{ position:"fixed", top:-9999, left:-9999, width:400, background:"radial-gradient(circle at 85% 0%, #1A1500 0%, #0A0A0A 55%)", padding:"26px 22px 22px", fontFamily:"system-ui,-apple-system,sans-serif", border:`3px solid ${T.yellow}`, borderRadius:26, boxSizing:"border-box", textAlign:"center", boxShadow:`inset 0 0 40px #F5C51822` }}>
     {/* Header — logo + nome */}
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginBottom:26 }}>
-      <div style={{ width:56, height:56, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:8, boxSizing:"border-box", flexShrink:0 }}>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:18 }}>
+      <div style={{ width:48, height:48, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:7, boxSizing:"border-box", flexShrink:0 }}>
         <img src={LOGO_URL} alt="" crossOrigin="anonymous" style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
       </div>
       <div style={{ textAlign:"left" }}>
-        <p style={{ margin:0, fontSize:22, fontWeight:900, color:"#fff", letterSpacing:2, lineHeight:1 }}>IMPÉRIO</p>
-        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
-          <span style={{ width:14, height:1, background:T.yellow, display:"inline-block" }}/>
-          <span style={{ fontSize:11, fontWeight:700, color:T.yellow, letterSpacing:3 }}>ACADEMIA</span>
-          <span style={{ width:14, height:1, background:T.yellow, display:"inline-block" }}/>
+        <p style={{ margin:0, fontSize:19, fontWeight:900, color:"#fff", letterSpacing:2, lineHeight:1 }}>IMPÉRIO</p>
+        <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+          <span style={{ width:12, height:1, background:T.yellow, display:"inline-block" }}/>
+          <span style={{ fontSize:10, fontWeight:700, color:T.yellow, letterSpacing:2 }}>ACADEMIA</span>
+          <span style={{ width:12, height:1, background:T.yellow, display:"inline-block" }}/>
         </div>
       </div>
     </div>
 
-    <p style={{ fontSize:44, margin:"0 0 6px" }}>💪</p>
-    <h2 style={{ margin:0, fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>TREINO</h2>
-    <h2 style={{ margin:"0 0 12px", fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>CONCLUÍDO</h2>
-    <p style={{ margin:"0 0 22px", fontSize:18, color:"#fff", fontWeight:600 }}>Tá pago!</p>
+    <p style={{ fontSize:34, margin:"0 0 4px" }}>💪</p>
+    <h2 style={{ margin:0, fontSize:32, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>TREINO</h2>
+    <h2 style={{ margin:"0 0 8px", fontSize:32, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>CONCLUÍDO</h2>
+    <p style={{ margin:"0 0 16px", fontSize:15, color:"#fff", fontWeight:600 }}>Tá pago!</p>
 
-    <div style={{ height:1, background:`linear-gradient(90deg, transparent, ${T.yellow}55, transparent)`, marginBottom:20 }}/>
+    <div style={{ height:1, background:`linear-gradient(90deg, transparent, ${T.yellow}55, transparent)`, marginBottom:14 }}/>
 
     <EmblemaConquista/>
-    <p style={{ margin:"6px 0 24px", fontSize:13, fontWeight:800, color:T.yellow, letterSpacing:3 }}>★ META CUMPRIDA ★</p>
+    <p style={{ margin:"4px 0 16px", fontSize:11, fontWeight:800, color:T.yellow, letterSpacing:2 }}>★ META CUMPRIDA ★</p>
 
-    <div style={{ background:"#00000055", borderRadius:16, padding:"18px 20px", border:`1px solid ${T.yellow}44`, marginBottom:22 }}>
-      <p style={{ margin:"0 0 4px", fontSize:12, color:"#AAA", textAlign:"left" }}>Treino</p>
-      <p style={{ margin:"0 0 12px", fontSize:19, fontWeight:800, color:"#fff", textAlign:"left" }}>{nomeTreino}</p>
-      <div style={{ height:1, background:"#FFFFFF22", marginBottom:14 }}/>
+    <div style={{ background:"#00000055", borderRadius:14, padding:"14px 16px", border:`1px solid ${T.yellow}44`, marginBottom:14 }}>
+      <p style={{ margin:"0 0 3px", fontSize:11, color:"#AAA", textAlign:"left" }}>Treino</p>
+      <p style={{ margin:"0 0 8px", fontSize:16, fontWeight:800, color:"#fff", textAlign:"left" }}>{nomeTreino}</p>
+      <div style={{ height:1, background:"#FFFFFF22", marginBottom:10 }}/>
       <div style={{ display:"flex", alignItems:"center" }}>
         <div style={{ flex:1, textAlign:"center" }}>
-          <p style={{ margin:"0 0 2px", fontSize:26, fontWeight:900, color:T.green, lineHeight:1 }}>{qtdExercicios}</p>
-          <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}><IconDumbbellSm/></div>
-          <p style={{ margin:0, fontSize:11, color:"#AAA" }}>exercícios</p>
+          <p style={{ margin:"0 0 2px", fontSize:21, fontWeight:900, color:T.green, lineHeight:1 }}>{qtdExercicios}</p>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:3 }}><IconDumbbellSm size={16}/></div>
+          <p style={{ margin:0, fontSize:10, color:"#AAA" }}>exercícios</p>
         </div>
         <div style={{ width:1, alignSelf:"stretch", background:"#FFFFFF22" }}/>
         <div style={{ flex:1, textAlign:"center" }}>
-          <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}><IconCalendarSm/></div>
-          <p style={{ margin:"0 0 2px", fontSize:17, fontWeight:800, color:"#fff", lineHeight:1 }}>{dataStr}</p>
-          <p style={{ margin:0, fontSize:11, color:"#AAA" }}>data</p>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:3 }}><IconCalendarSm size={16}/></div>
+          <p style={{ margin:"0 0 2px", fontSize:14, fontWeight:800, color:"#fff", lineHeight:1 }}>{dataStr}</p>
+          <p style={{ margin:0, fontSize:10, color:"#AAA" }}>data</p>
         </div>
       </div>
     </div>
 
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-      <IconDumbbellSm size={14}/>
-      <span style={{ fontSize:13, fontWeight:900, color:T.green, letterSpacing:1 }}>PARABÉNS PELO FOCO.</span>
-      <IconDumbbellSm size={14}/>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
+      <IconDumbbellSm size={12}/>
+      <span style={{ fontSize:11, fontWeight:900, color:T.green, letterSpacing:1 }}>PARABÉNS PELO FOCO.</span>
+      <IconDumbbellSm size={12}/>
+
     </div>
-    <p style={{ margin:"4px 0 0", fontSize:13, color:"#DDD" }}>Disciplina hoje, resultados amanhã.</p>
+    <p style={{ margin:"3px 0 0", fontSize:11, color:"#DDD" }}>Disciplina hoje, resultados amanhã.</p>
   </div>
 );
 
