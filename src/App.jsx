@@ -1097,50 +1097,33 @@ const initAlunos = [
 ];
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-const LoginScreen = ({ onLogin, setAuthAdmin }) => {
+const LoginScreen = ({ onLogin }) => {
   const [login,setLogin]=useState("");
   const [senha,setSenha]=useState("");
   const [err,setErr]=useState("");
   const [loading,setLoading]=useState(false);
 
-  const ADMIN_SENHA = "admin@123";
-  const NUTRI_SENHA = "nutri@123";
   const DONO_LOGIN = "academiaimperio";
-  const DONO_SENHA = "imperio@2026";
 
   const handle = async () => {
     if(!login.trim()||!senha.trim()){setErr("Preencha login e senha.");return;}
     setLoading(true); setErr("");
 
-    // ── Login admin local ───────────────────────────────────────────────────
-    if(login.trim()==="admin"){
-      if(senha === ADMIN_SENHA){ setAuthAdmin("admin"); }
-      else { setErr("Senha do admin incorreta."); }
-      setLoading(false); return;
-    }
+    // Mapeia o "login" digitado (do jeito que você já está acostumada) pro
+    // e-mail interno usado no Firebase Auth. A senha é validada de verdade
+    // pelo Firebase — não fica mais escrita no código do site.
+    let email;
+    if(login.trim()==="admin") email = "admin@imperio.app";
+    else if(login.trim()==="nutri") email = "nutri@imperio.app";
+    else if(login.trim()===DONO_LOGIN) email = "dono@imperio.app";
+    else email = `${login.replace(/\D/g,"")}@imperio.app`; // aluno: CPF
 
-    // ── Login nutricionista local ───────────────────────────────────────────
-    if(login.trim()==="nutri"){
-      if(senha === NUTRI_SENHA){ setAuthAdmin("nutri"); }
-      else { setErr("Senha da nutricionista incorreta."); }
-      setLoading(false); return;
-    }
-
-    // ── Login dono da academia (acesso restrito) ────────────────────────────
-    if(login.trim()===DONO_LOGIN){
-      if(senha === DONO_SENHA){ setAuthAdmin("dono"); }
-      else { setErr("Senha incorreta."); }
-      setLoading(false); return;
-    }
-
-    // ── Login aluno via Firebase Auth ──────────────────────────────────────
     try {
-      const cpf = login.replace(/\D/g,"");
-      await signInWithEmailAndPassword(fbAuth,`${cpf}@imperio.app`,senha);
+      await signInWithEmailAndPassword(fbAuth, email, senha);
     } catch(e) {
       const msgs = {
-        "auth/invalid-credential":"CPF ou senha incorretos.",
-        "auth/user-not-found":"Aluno não cadastrado.",
+        "auth/invalid-credential":"Login ou senha incorretos.",
+        "auth/user-not-found":"Usuário não encontrado.",
         "auth/wrong-password":"Senha incorreta.",
         "auth/too-many-requests":"Muitas tentativas. Aguarde alguns minutos.",
       };
@@ -3455,24 +3438,13 @@ export default function App() {
 
   // ── Auth state listener ──────────────────────────────────────────────────
   useEffect(() => {
-    // Check if admin is already logged in locally
-    const localRole = sessionStorage.getItem("imperio_admin");
-    if (localRole === "admin" || localRole === "nutri" || localRole === "dono") {
-      setAuth({ role: localRole });
-      setCarregando(false);
-    }
-
     const unsub = onAuthStateChanged(fbAuth, async (user) => {
-      if (sessionStorage.getItem("imperio_admin")) {
-        setCarregando(false);
-        return;
-      }
-
       if (!user) { setAuth(null); setCarregando(false); return; }
 
-      // Admin via Firebase Auth (legado)
-      if (user.email === "admin@imperio.app") {
-        setAuth({ role:"admin", uid:user.uid });
+      // Contas de equipe (admin/nutricionista/dono) via Firebase Auth
+      const CONTAS_EQUIPE = { "admin@imperio.app":"admin", "nutri@imperio.app":"nutri", "dono@imperio.app":"dono" };
+      if (CONTAS_EQUIPE[user.email]) {
+        setAuth({ role:CONTAS_EQUIPE[user.email], uid:user.uid });
         setCarregando(false);
         return;
       }
@@ -3525,15 +3497,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    sessionStorage.removeItem("imperio_admin");
     await signOut(fbAuth);
     setAuth(null);
-  };
-
-  // Seta admin/nutri local sem Firebase Auth
-  const setAuthAdmin = (role="admin") => {
-    sessionStorage.setItem("imperio_admin", role);
-    setAuth({ role });
   };
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -3548,7 +3513,7 @@ export default function App() {
     </div>
   );
 
-  if (!auth) return <LoginScreen onLogin={handleLogin} setAuthAdmin={setAuthAdmin} />;
+  if (!auth) return <LoginScreen onLogin={handleLogin} />;
 
   if (auth.role === "admin" || auth.role === "dono") return (
     <AdminPanel
