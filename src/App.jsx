@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import html2canvas from "html2canvas";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
 import { initializeApp } from "firebase/app";
@@ -129,6 +130,140 @@ const TimerDescanso = ({ segundos, onClose, label }) => {
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── CONFETE (animação leve de celebração) ────────────────────────────────────
+const Confete = () => {
+  const cores = [T.yellow, T.green, "#FFD700", "#3498DB", "#FF6B6B"];
+  const pecas = useRef(Array.from({ length: 26 }).map((_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 0.5,
+    duracao: 2 + Math.random() * 1.2,
+    cor: cores[i % cores.length],
+    rot: Math.random() * 360,
+    tam: 6 + Math.random() * 5,
+  }))).current;
+  return (
+    <div style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none", borderRadius:"inherit" }}>
+      {pecas.map(p => (
+        <span key={p.id} style={{
+          position:"absolute", top:-16, left:`${p.left}%`, width:p.tam, height:p.tam*0.4,
+          background:p.cor, borderRadius:2,
+          animation:`confeteCai ${p.duracao}s ease-in ${p.delay}s forwards`,
+          transform:`rotate(${p.rot}deg)`,
+        }}/>
+      ))}
+      <style>{`@keyframes confeteCai { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(440px) rotate(560deg);opacity:0} }`}</style>
+    </div>
+  );
+};
+
+// ─── CARD COMPARTILHÁVEL DO TREINO (renderizado fora da tela, vira imagem) ────
+const ShareCard = ({ innerRef, nomeTreino, qtdExercicios, dataStr }) => (
+  <div ref={innerRef} style={{ position:"fixed", top:-9999, left:-9999, width:400, background:"linear-gradient(160deg,#0A0A0A,#1A1500)", padding:"40px 32px", fontFamily:"system-ui,-apple-system,sans-serif", border:`2px solid ${T.yellow}`, borderRadius:24, boxSizing:"border-box" }}>
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:30 }}>
+      <div style={{ width:44, height:44, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:6, boxSizing:"border-box" }}>
+        <img src={LOGO_URL} alt="" crossOrigin="anonymous" style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+      </div>
+      <span style={{ fontSize:16, fontWeight:900, color:"#fff", letterSpacing:1 }}>IMPÉRIO ACADEMIA</span>
+    </div>
+    <p style={{ fontSize:38, margin:"0 0 8px" }}>💪</p>
+    <h2 style={{ margin:"0 0 6px", fontSize:27, fontWeight:900, color:T.yellow, lineHeight:1.25 }}>TREINO CONCLUÍDO</h2>
+    <p style={{ margin:"0 0 26px", fontSize:16, color:"#fff", fontWeight:600 }}>Mais um dia vencido!</p>
+    <div style={{ background:"#00000055", borderRadius:14, padding:"16px 18px", border:`1px solid ${T.yellow}33` }}>
+      <p style={{ margin:"0 0 4px", fontSize:12, color:"#AAA" }}>Treino</p>
+      <p style={{ margin:"0 0 14px", fontSize:17, fontWeight:800, color:"#fff" }}>{nomeTreino}</p>
+      <div style={{ display:"flex", justifyContent:"space-between" }}>
+        <div>
+          <p style={{ margin:0, fontSize:22, fontWeight:900, color:T.green }}>{qtdExercicios}</p>
+          <p style={{ margin:0, fontSize:11, color:"#AAA" }}>exercícios</p>
+        </div>
+        <div style={{ textAlign:"right" }}>
+          <p style={{ margin:0, fontSize:14, fontWeight:700, color:"#fff" }}>{dataStr}</p>
+          <p style={{ margin:0, fontSize:11, color:"#AAA" }}>data</p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── MODAL DE TREINO CONCLUÍDO ─────────────────────────────────────────────────
+const CelebrationModal = ({ nomeTreino, qtdExercicios, onClose }) => {
+  const cardRef = useRef(null);
+  const [compartilhando, setCompartilhando] = useState(null);
+  const dataStr = new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric" });
+
+  const gerarImagem = async () => {
+    const canvas = await html2canvas(cardRef.current, { backgroundColor:"#0A0A0A", scale:2, useCORS:true });
+    return new Promise(resolve => canvas.toBlob(blob => resolve(blob), "image/png"));
+  };
+
+  const compartilhar = async (rede) => {
+    if (compartilhando) return;
+    setCompartilhando(rede);
+    try {
+      const blob = await gerarImagem();
+      const file = new File([blob], "treino-concluido.png", { type:"image/png" });
+      if (navigator.canShare && navigator.canShare({ files:[file] })) {
+        await navigator.share({ files:[file], title:"Treino concluído 💪", text:"Mais um dia vencido!" });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "treino-concluido.png";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+      }
+    } catch (e) {
+      // usuário cancelou o compartilhamento ou navegador sem suporte — sem problema
+    } finally {
+      setCompartilhando(null);
+    }
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"celebFade 0.25s ease" }}>
+      <ShareCard innerRef={cardRef} nomeTreino={nomeTreino} qtdExercicios={qtdExercicios} dataStr={dataStr}/>
+      <div style={{ position:"relative", background:T.bg, border:`1px solid ${T.yellow}55`, borderRadius:28, padding:"34px 24px 24px", width:"100%", maxWidth:360, textAlign:"center", boxShadow:`0 0 60px ${T.yellow}33`, animation:"celebPop 0.4s cubic-bezier(.34,1.56,.64,1)", overflow:"hidden" }}>
+        <Confete/>
+        <p style={{ fontSize:44, margin:"0 0 8px", position:"relative" }}>🎉</p>
+        <h2 style={{ margin:"0 0 6px", fontSize:24, fontWeight:900, color:"#fff", position:"relative" }}>Parabéns!</h2>
+        <p style={{ margin:"0 0 4px", fontSize:16, fontWeight:800, color:T.yellow, position:"relative" }}>Treino concluído com sucesso</p>
+        <p style={{ margin:"0 0 22px", fontSize:14, color:T.text3, position:"relative" }}>Mais um dia vencido 💪</p>
+
+        <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:84, height:84, borderRadius:"50%", border:`3px solid ${T.green}`, boxShadow:`0 0 30px ${T.green}66`, marginBottom:22, position:"relative" }}>
+          <Ic n="check" size={38} color={T.green}/>
+        </div>
+
+        <div style={{ borderTop:`1px solid ${T.border}`, paddingTop:18, marginBottom:16, position:"relative" }}>
+          <p style={{ margin:"0 0 14px", fontSize:11, fontWeight:700, color:T.text3, letterSpacing:1 }}>COMPARTILHAR CONQUISTAS</p>
+          <button disabled={compartilhando!==null} onClick={()=>compartilhar("whatsapp")} style={{ width:"100%", display:"flex", alignItems:"center", gap:10, background:"#25D36618", border:"1px solid #25D36644", borderRadius:12, padding:"12px 14px", marginBottom:10, cursor: compartilhando?"default":"pointer", opacity: compartilhando && compartilhando!=="whatsapp" ? 0.5 : 1 }}>
+            <span style={{ width:32, height:32, borderRadius:"50%", background:"#25D366", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="whatsapp" size={17} color="#fff"/></span>
+            <span style={{ fontSize:14, fontWeight:700, color:"#fff", flex:1, textAlign:"left" }}>{compartilhando==="whatsapp"?"Gerando...":"Status do WhatsApp"}</span>
+            <Ic n="chevR" size={16} color={T.text3}/>
+          </button>
+          <div style={{ display:"flex", gap:10 }}>
+            <button disabled={compartilhando!==null} onClick={()=>compartilhar("instagram")} style={{ flex:1, display:"flex", alignItems:"center", gap:8, background:"#E1306C18", border:"1px solid #E1306C44", borderRadius:12, padding:"12px 10px", cursor: compartilhando?"default":"pointer", opacity: compartilhando && compartilhando!=="instagram" ? 0.5 : 1 }}>
+              <span style={{ fontSize:17 }}>📸</span>
+              <span style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{compartilhando==="instagram"?"Gerando...":"Instagram"}</span>
+            </button>
+            <button disabled={compartilhando!==null} onClick={()=>compartilhar("facebook")} style={{ flex:1, display:"flex", alignItems:"center", gap:8, background:"#1877F218", border:"1px solid #1877F244", borderRadius:12, padding:"12px 10px", cursor: compartilhando?"default":"pointer", opacity: compartilhando && compartilhando!=="facebook" ? 0.5 : 1 }}>
+              <span style={{ fontSize:17 }}>🔵</span>
+              <span style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{compartilhando==="facebook"?"Gerando...":"Facebook"}</span>
+            </button>
+          </div>
+        </div>
+
+        <button onClick={onClose} style={{ width:"100%", background:`linear-gradient(135deg,${T.yellow},#FFD700)`, border:"none", borderRadius:14, padding:15, color:T.bg, fontSize:15, fontWeight:900, cursor:"pointer", position:"relative" }}>
+          Concluir
+        </button>
+      </div>
+      <style>{`
+        @keyframes celebFade { from{opacity:0} to{opacity:1} }
+        @keyframes celebPop { from{opacity:0; transform:scale(0.85) translateY(10px)} to{opacity:1; transform:scale(1) translateY(0)} }
+      `}</style>
     </div>
   );
 };
@@ -2565,12 +2700,23 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const [exSel,setExSel]=useState(null);
   const [supersetSel,setSupersetSel]=useState(null); // { items:[...], round:1, idx:0 } — bi-set/tri-set em andamento
   const [timerLabel,setTimerLabel]=useState(null);
+  const [celebrando,setCelebrando]=useState(false);
+  const [comemorados,setComemorados]=useState([]); // treinos (fichas) já celebrados nesta sessão
   const [done,setDone]=useState([]);
   const [seriesDone,setSeriesDone]=useState({}); // { [exId]: nº séries feitas }
   const [timerSeg,setTimerSeg]=useState(null);
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"");
   const fichas=Object.keys(aluno.treinos||{});
   const exList=aluno.treinos?.[treinoAtivo]||[];
+  // Verifica se o TREINO INTEIRO (todos os exercícios normais + todas as rodadas de bi-set/tri-set) já foi concluído
+  const verificarTreinoCompleto = (doneAtualizado) => {
+    if (exList.length===0) return;
+    const tudoFeito = exList.every(ex => doneAtualizado.includes(ex.id));
+    if (tudoFeito && !comemorados.includes(treinoAtivo)) {
+      setComemorados(p => [...p, treinoAtivo]);
+      setTimeout(() => setCelebrando(true), 500); // pequeno delay pra fechar a tela do exercício antes
+    }
+  };
 
   const BOT_NAV=[
     {id:"inicio",icon:"home",label:"Início"},
@@ -2661,8 +2807,10 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
             setTimerLabel(`${tipoLabel} — rodada ${round}/${totalRounds} concluída`);
             setTimerSeg(descansoTotalGrupo || 60);
           } else {
-            setDone(p => [...p, ...items.map(i=>i.id).filter(id=>!p.includes(id))]);
+            const novoDone = [...done, ...items.map(i=>i.id).filter(id=>!done.includes(id))];
+            setDone(novoDone);
             setSupersetSel(null);
+            verificarTreinoCompleto(novoDone);
           }
         };
 
@@ -2764,9 +2912,11 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
           const novas = (seriesDone[exSel.id] || 0) + 1;
           setSeriesDone(p => ({ ...p, [exSel.id]: novas }));
           if (novas >= totalSeries) {
-            setDone(p => p.includes(exSel.id) ? p : [...p, exSel.id]);
+            const novoDone = done.includes(exSel.id) ? done : [...done, exSel.id];
+            setDone(novoDone);
             setTimerSeg(null);
             setTimeout(() => setExSel(null), 900); // volta após animação
+            verificarTreinoCompleto(novoDone);
           } else {
             setTimerSeg(parseDescanso(exSel.descanso)); // abre timer automático
           }
@@ -3115,6 +3265,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   return (
     <div style={{ maxWidth:430, margin:"0 auto", background:T.bg, minHeight:"100vh", fontFamily:"system-ui,-apple-system,sans-serif", position:"relative", zIndex:0 }}>
       <Watermark/>
+      {celebrando && <CelebrationModal nomeTreino={treinoAtivo} qtdExercicios={exList.length} onClose={()=>setCelebrando(false)}/>}
       {menuOpen && <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"#000C", zIndex:40, maxWidth:430, margin:"0 auto" }}/>}
       {/* Sidebar */}
       <div style={{ position:"fixed", top:0, left:menuOpen?"max(0px,calc(50vw - 215px))":"calc(max(0px,calc(50vw - 215px)) - 260px)", width:260, height:"100%", background:"#0D0D00", borderRight:`1px solid ${T.yellow}22`, zIndex:50, transition:"left 0.3s cubic-bezier(.4,0,.2,1)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
