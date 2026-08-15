@@ -234,7 +234,7 @@ const ShareCard = ({ innerRef, nomeTreino, qtdExercicios, dataStr }) => (
     <p style={{ fontSize:44, margin:"0 0 6px" }}>💪</p>
     <h2 style={{ margin:0, fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>TREINO</h2>
     <h2 style={{ margin:"0 0 12px", fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>CONCLUÍDO</h2>
-    <p style={{ margin:"0 0 22px", fontSize:18, color:"#fff", fontWeight:600 }}>Mais um dia vencido!</p>
+    <p style={{ margin:"0 0 22px", fontSize:18, color:"#fff", fontWeight:600 }}>Tá pago!</p>
 
     <div style={{ height:1, background:`linear-gradient(90deg, transparent, ${T.yellow}55, transparent)`, marginBottom:20 }}/>
 
@@ -287,7 +287,7 @@ const CelebrationModal = ({ nomeTreino, qtdExercicios, onClose }) => {
       const blob = await gerarImagem();
       const file = new File([blob], "treino-concluido.png", { type:"image/png" });
       if (navigator.canShare && navigator.canShare({ files:[file] })) {
-        await navigator.share({ files:[file], title:"Treino concluído 💪", text:"Mais um dia vencido!" });
+        await navigator.share({ files:[file], title:"Treino concluído 💪", text:"Tá pago!" });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
