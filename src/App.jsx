@@ -82,7 +82,7 @@ function parseDescanso(str=""){
 }
 
 // ─── TIMER DE DESCANSO ────────────────────────────────────────────────────────
-const TimerDescanso = ({ segundos, onClose }) => {
+const TimerDescanso = ({ segundos, onClose, label }) => {
   const total=segundos;
   const [restante,setRestante]=useState(total);
   const [rodando,setRodando]=useState(true);
@@ -106,6 +106,7 @@ const TimerDescanso = ({ segundos, onClose }) => {
     <div style={{position:"fixed",inset:0,background:"#000E",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:T.card,borderRadius:28,padding:"32px 28px 28px",width:"88%",maxWidth:320,textAlign:"center",border:`1px solid ${cor}44`,boxShadow:`0 0 60px ${cor}22`}}>
         <p style={{margin:"0 0 4px",color:T.text3,fontSize:12,fontWeight:700,letterSpacing:1}}>⏱️ DESCANSO</p>
+        {label && <p style={{margin:"0 0 2px",color:T.yellow,fontSize:13,fontWeight:900}}>{label}</p>}
         <p style={{margin:"0 0 22px",color:T.text,fontSize:14,fontWeight:600}}>{restante===0?"Hora de continuar! 💪":"Descanse e prepare-se"}</p>
         <div style={{position:"relative",display:"inline-flex",marginBottom:22}}>
           <svg width={120} height={120} viewBox="0 0 120 120">
@@ -2562,6 +2563,8 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const [tab,setTab]=useState("inicio");
   const [menuOpen,setMenuOpen]=useState(false);
   const [exSel,setExSel]=useState(null);
+  const [supersetSel,setSupersetSel]=useState(null); // { items:[...], round:1, idx:0 } — bi-set/tri-set em andamento
+  const [timerLabel,setTimerLabel]=useState(null);
   const [done,setDone]=useState([]);
   const [seriesDone,setSeriesDone]=useState({}); // { [exId]: nº séries feitas }
   const [timerSeg,setTimerSeg]=useState(null);
@@ -2640,6 +2643,114 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
 
     // ── TREINOS
     if(tab==="treinos") {
+      if(supersetSel) {
+        const { items, round, idx } = supersetSel;
+        const totalRounds = Math.max(...items.map(i => parseInt(String(i.series).split("-")[0]) || 3));
+        const isTri = items.length >= 3;
+        const tipoLabel = isTri ? "TRI-SET" : "BI-SET";
+        const roundConcluida = idx >= items.length;
+        const atual = items[Math.min(idx, items.length-1)];
+
+        const concluirAtual = () => {
+          const novoIdx = idx + 1;
+          if (novoIdx < items.length) {
+            setSupersetSel(p => ({ ...p, idx: novoIdx }));
+          } else if (round < totalRounds) {
+            setSupersetSel(p => ({ ...p, idx: novoIdx })); // marca a rodada como concluída visualmente
+            setTimerLabel(`${tipoLabel} — rodada ${round}/${totalRounds} concluída`);
+            setTimerSeg(parseDescanso(items[items.length-1].descanso || "60s"));
+          } else {
+            setDone(p => [...p, ...items.map(i=>i.id).filter(id=>!p.includes(id))]);
+            setSupersetSel(null);
+          }
+        };
+
+        const resetarGrupo = () => { setSupersetSel(p => ({ ...p, round:1, idx:0 })); setTimerSeg(null); setTimerLabel(null); };
+
+        return (
+          <div>
+            <button onClick={()=>setSupersetSel(null)} style={{ background:"none", border:"none", color:T.text3, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginBottom:16, padding:0, fontSize:14 }}>
+              <Ic n="back" size={18} color={T.text3}/> Voltar
+            </button>
+            {timerSeg!==null && <TimerDescanso segundos={timerSeg} label={timerLabel} onClose={()=>{ setTimerSeg(null); setTimerLabel(null); setSupersetSel(p=>p?({...p, round:p.round+1, idx:0}):p); }}/>}
+
+            {/* Cabeçalho do grupo */}
+            <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, border:`1px solid ${T.yellow}55`, borderRadius:18, padding:"14px 16px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <p style={{ margin:0, fontSize:12, fontWeight:900, color:T.yellow, letterSpacing:0.5 }}>🔗 {tipoLabel}</p>
+                <p style={{ margin:"3px 0 0", fontSize:18, fontWeight:900, color:T.text }}>Rodada {round}/{totalRounds}</p>
+              </div>
+              {round>1 && <button onClick={resetarGrupo} style={{ background:"transparent", border:`1px solid ${T.border}`, borderRadius:8, padding:"6px 12px", color:T.text3, fontSize:12, cursor:"pointer" }}>↺ Resetar</button>}
+            </div>
+
+            {/* Indicador de fluxo */}
+            <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:6, marginBottom:18, padding:"0 2px" }}>
+              {items.map((it,i) => (
+                <span key={it.id} style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:12, fontWeight: i===idx?900:700, color: i<idx?T.green:i===idx?T.yellow:T.text3 }}>
+                    {i<idx?"✓ ":""}{it.nome}
+                  </span>
+                  {i<items.length-1 && <span style={{ color:T.text3, fontSize:12 }}>→</span>}
+                </span>
+              ))}
+            </div>
+
+            {!roundConcluida ? (
+              <>
+                {/* AGORA — exercício em destaque */}
+                <p style={{ margin:"0 0 6px 2px", fontSize:11, fontWeight:900, color:T.yellow, letterSpacing:1 }}>AGORA</p>
+                <div style={{ background:`linear-gradient(135deg,#0D0D00,#161616)`, borderRadius:20, border:`1px solid ${T.yellow}55`, overflow:"hidden", marginBottom:14, boxShadow:`0 0 30px ${T.yellow}22` }}>
+                  <div style={{ display:"flex", alignItems:"stretch" }}>
+                    <div style={{ width:96, height:96, flexShrink:0 }}>
+                      {atual.img ? <img src={atual.img} alt={atual.nome} style={{ width:96, height:96, objectFit:"cover", display:"block" }}/> : <ExImg nome={atual.nome} musculo={atual.musculo} imgUrl={atual.img_url} style={{width:96,height:96}}/>}
+                    </div>
+                    <div style={{ flex:1, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                      <h3 style={{ margin:"0 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{atual.nome}</h3>
+                      <p style={{ margin:0, color:T.yellow, fontSize:14, fontWeight:700 }}>{atual.reps} repetições</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button onClick={concluirAtual} style={{ width:"100%", background:`linear-gradient(135deg,${T.yellow},#FFD700)`, border:"none", borderRadius:14, padding:16, color:T.bg, fontSize:15, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:`0 4px 20px ${T.yellow}44`, marginBottom:16 }}>
+                  <span style={{ fontSize:20 }}>💪</span>
+                  {idx===items.length-1 ? `Concluir ${atual.nome} (fecha a rodada)` : `Concluir ${atual.nome}`}
+                </button>
+
+                {/* JÁ CONCLUÍDO */}
+                {idx>0 && (
+                  <div style={{ marginBottom:14 }}>
+                    <p style={{ margin:"0 0 6px 2px", fontSize:11, fontWeight:900, color:T.green, letterSpacing:1 }}>JÁ CONCLUÍDO</p>
+                    {items.slice(0,idx).map(it => (
+                      <div key={it.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:"#0A1000", border:`1px solid ${T.green}33`, borderRadius:12, marginBottom:6 }}>
+                        <Ic n="check" size={15} color={T.green}/>
+                        <span style={{ fontSize:13, color:T.text2, textDecoration:"line-through" }}>{it.nome}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* PRÓXIMO */}
+                {idx<items.length-1 && (
+                  <div>
+                    <p style={{ margin:"0 0 6px 2px", fontSize:11, fontWeight:900, color:T.text3, letterSpacing:1 }}>PRÓXIMO</p>
+                    {items.slice(idx+1).map(it => (
+                      <div key={it.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:T.card, border:`1px solid ${T.border}`, borderRadius:12, marginBottom:6, opacity:0.6 }}>
+                        <span style={{ fontSize:13, color:T.text3 }}>{it.nome}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ textAlign:"center", padding:"30px 0" }}>
+                <p style={{ fontSize:36, marginBottom:10 }}>🎉</p>
+                <p style={{ margin:0, color:T.green, fontSize:16, fontWeight:900 }}>{tipoLabel} {round}/{totalRounds} concluído!</p>
+                <p style={{ margin:"4px 0 0", color:T.text3, fontSize:13 }}>{round<totalRounds ? "Descansando antes da próxima rodada..." : "Todas as rodadas concluídas 💪"}</p>
+              </div>
+            )}
+          </div>
+        );
+      }
       if(exSel) {
         // Parse número de séries do exercício
         const totalSeries = parseInt(String(exSel.series).split("-")[0]) || 3;
@@ -2847,7 +2958,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
                       const ts=parseInt(String(ex.series).split("-")[0])||3;
                       const pct=sf/ts;
                       return (
-                        <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
+                        <div key={ex.id} onClick={()=>{ g.items.length>1 ? setSupersetSel({items:g.items, round:1, idx:0}) : setExSel(ex); }} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
                           <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
                             {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:80,height:80}}/>}
                           </div>
