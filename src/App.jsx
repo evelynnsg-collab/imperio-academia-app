@@ -162,31 +162,110 @@ const Confete = () => {
 };
 
 // ─── CARD COMPARTILHÁVEL DO TREINO (renderizado fora da tela, vira imagem) ────
+// Emblema: escudo dourado + check + coroa de louros (identidade "conquista")
+const EmblemaConquista = () => {
+  const folha = (cx, cy, rot, escala=1) => (
+    <ellipse cx={cx} cy={cy} rx={7*escala} ry={3.2*escala} fill="#F5C518" opacity="0.95" transform={`rotate(${rot} ${cx} ${cy})`}/>
+  );
+  const louroEsq = [], louroDir = [];
+  for (let i=0;i<9;i++){
+    const t = i/8;
+    const y = 42 + t*104;
+    const xOff = 18 + Math.sin(t*Math.PI)*8; // arqueia pra fora e volta, contornando o escudo
+    louroEsq.push(<g key={"le"+i}>{folha(42-xOff, y, -60+t*100)}</g>);
+    louroDir.push(<g key={"ld"+i}>{folha(138+xOff, y, 60-t*100)}</g>);
+  }
+  return (
+    <svg width="220" height="190" viewBox="-20 0 220 190" style={{ display:"block", margin:"0 auto" }}>
+      <defs>
+        <radialGradient id="glowGrad" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="#F5C518" stopOpacity="0.55"/>
+          <stop offset="100%" stopColor="#F5C518" stopOpacity="0"/>
+        </radialGradient>
+        <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FFE58A"/>
+          <stop offset="55%" stopColor="#F5C518"/>
+          <stop offset="100%" stopColor="#B8860B"/>
+        </linearGradient>
+      </defs>
+      <circle cx="90" cy="95" r="105" fill="url(#glowGrad)"/>
+      {/* coroa de louros */}
+      <g stroke="#F5C518" strokeWidth="2.4" fill="none" opacity="0.95">
+        <path d="M24 42 Q10 95 44 146"/>
+        <path d="M156 42 Q170 95 136 146"/>
+      </g>
+      {louroEsq}{louroDir}
+      {/* escudo */}
+      <path d="M90 14 L138 30 L138 78 Q138 122 90 156 Q42 122 42 78 L42 30 Z" fill="url(#shieldGrad)" stroke="#FFF3C4" strokeWidth="2.5"/>
+      <path d="M90 22 L130 35 L130 78 Q130 114 90 144 Q50 114 50 78 L50 35 Z" fill="#0D0D00"/>
+      <polyline points="66,80 84,100 116,60" fill="none" stroke="#F5C518" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+};
+
+const IconDumbbellSm = ({ color="#22C55E", size=20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ display:"block" }}>
+    <line x1="6.5" y1="6.5" x2="17.5" y2="17.5"/><path d="M8 6l-4 4 8.5 8.5 4-4"/><path d="M16 8l4 4-8.5 8.5-4-4"/>
+  </svg>
+);
+const IconCalendarSm = ({ color="#22C55E", size=20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ display:"block" }}>
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
 const ShareCard = ({ innerRef, nomeTreino, qtdExercicios, dataStr }) => (
-  <div ref={innerRef} style={{ position:"fixed", top:-9999, left:-9999, width:400, background:"linear-gradient(160deg,#0A0A0A,#1A1500)", padding:"40px 32px", fontFamily:"system-ui,-apple-system,sans-serif", border:`2px solid ${T.yellow}`, borderRadius:24, boxSizing:"border-box" }}>
-    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:30 }}>
-      <div style={{ width:44, height:44, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:6, boxSizing:"border-box" }}>
+  <div ref={innerRef} style={{ position:"fixed", top:-9999, left:-9999, width:400, background:"radial-gradient(circle at 85% 0%, #1A1500 0%, #0A0A0A 55%)", padding:"36px 28px 30px", fontFamily:"system-ui,-apple-system,sans-serif", border:`3px solid ${T.yellow}`, borderRadius:28, boxSizing:"border-box", textAlign:"center", boxShadow:`inset 0 0 40px #F5C51822` }}>
+    {/* Header — logo + nome */}
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginBottom:26 }}>
+      <div style={{ width:56, height:56, borderRadius:50, background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:8, boxSizing:"border-box", flexShrink:0 }}>
         <img src={LOGO_URL} alt="" crossOrigin="anonymous" style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
       </div>
-      <span style={{ fontSize:16, fontWeight:900, color:"#fff", letterSpacing:1 }}>IMPÉRIO ACADEMIA</span>
+      <div style={{ textAlign:"left" }}>
+        <p style={{ margin:0, fontSize:22, fontWeight:900, color:"#fff", letterSpacing:2, lineHeight:1 }}>IMPÉRIO</p>
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+          <span style={{ width:14, height:1, background:T.yellow, display:"inline-block" }}/>
+          <span style={{ fontSize:11, fontWeight:700, color:T.yellow, letterSpacing:3 }}>ACADEMIA</span>
+          <span style={{ width:14, height:1, background:T.yellow, display:"inline-block" }}/>
+        </div>
+      </div>
     </div>
-    <p style={{ fontSize:38, margin:"0 0 8px" }}>💪</p>
-    <h2 style={{ margin:"0 0 6px", fontSize:27, fontWeight:900, color:T.yellow, lineHeight:1.25 }}>TREINO CONCLUÍDO</h2>
-    <p style={{ margin:"0 0 26px", fontSize:16, color:"#fff", fontWeight:600 }}>Mais um dia vencido!</p>
-    <div style={{ background:"#00000055", borderRadius:14, padding:"16px 18px", border:`1px solid ${T.yellow}33` }}>
-      <p style={{ margin:"0 0 4px", fontSize:12, color:"#AAA" }}>Treino</p>
-      <p style={{ margin:"0 0 14px", fontSize:17, fontWeight:800, color:"#fff" }}>{nomeTreino}</p>
-      <div style={{ display:"flex", justifyContent:"space-between" }}>
-        <div>
-          <p style={{ margin:0, fontSize:22, fontWeight:900, color:T.green }}>{qtdExercicios}</p>
+
+    <p style={{ fontSize:44, margin:"0 0 6px" }}>💪</p>
+    <h2 style={{ margin:0, fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>TREINO</h2>
+    <h2 style={{ margin:"0 0 12px", fontSize:40, fontWeight:900, color:T.yellow, lineHeight:1.02, letterSpacing:1, textShadow:"0 2px 0 #7A5C00, 0 0 24px #F5C51866" }}>CONCLUÍDO</h2>
+    <p style={{ margin:"0 0 22px", fontSize:18, color:"#fff", fontWeight:600 }}>Mais um dia vencido!</p>
+
+    <div style={{ height:1, background:`linear-gradient(90deg, transparent, ${T.yellow}55, transparent)`, marginBottom:20 }}/>
+
+    <EmblemaConquista/>
+    <p style={{ margin:"6px 0 24px", fontSize:13, fontWeight:800, color:T.yellow, letterSpacing:3 }}>★ META CUMPRIDA ★</p>
+
+    <div style={{ background:"#00000055", borderRadius:16, padding:"18px 20px", border:`1px solid ${T.yellow}44`, marginBottom:22 }}>
+      <p style={{ margin:"0 0 4px", fontSize:12, color:"#AAA", textAlign:"left" }}>Treino</p>
+      <p style={{ margin:"0 0 12px", fontSize:19, fontWeight:800, color:"#fff", textAlign:"left" }}>{nomeTreino}</p>
+      <div style={{ height:1, background:"#FFFFFF22", marginBottom:14 }}/>
+      <div style={{ display:"flex", alignItems:"center" }}>
+        <div style={{ flex:1, textAlign:"center" }}>
+          <p style={{ margin:"0 0 2px", fontSize:26, fontWeight:900, color:T.green, lineHeight:1 }}>{qtdExercicios}</p>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}><IconDumbbellSm/></div>
           <p style={{ margin:0, fontSize:11, color:"#AAA" }}>exercícios</p>
         </div>
-        <div style={{ textAlign:"right" }}>
-          <p style={{ margin:0, fontSize:14, fontWeight:700, color:"#fff" }}>{dataStr}</p>
+        <div style={{ width:1, alignSelf:"stretch", background:"#FFFFFF22" }}/>
+        <div style={{ flex:1, textAlign:"center" }}>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}><IconCalendarSm/></div>
+          <p style={{ margin:"0 0 2px", fontSize:17, fontWeight:800, color:"#fff", lineHeight:1 }}>{dataStr}</p>
           <p style={{ margin:0, fontSize:11, color:"#AAA" }}>data</p>
         </div>
       </div>
     </div>
+
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+      <IconDumbbellSm size={14}/>
+      <span style={{ fontSize:13, fontWeight:900, color:T.green, letterSpacing:1 }}>PARABÉNS PELO FOCO.</span>
+      <IconDumbbellSm size={14}/>
+    </div>
+    <p style={{ margin:"4px 0 0", fontSize:13, color:"#DDD" }}>Disciplina hoje, resultados amanhã.</p>
   </div>
 );
 
