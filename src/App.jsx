@@ -176,30 +176,20 @@ const EmblemaConquista = () => {
     louroDir.push(<g key={"ld"+i}>{folha(138+xOff, y, 60-t*100)}</g>);
   }
   return (
-    <svg width="172" height="148" viewBox="-20 0 220 190" style={{ display:"block", margin:"0 auto" }}>
-      <defs>
-        <radialGradient id="glowGrad" cx="50%" cy="45%" r="55%">
-          <stop offset="0%" stopColor="#F5C518" stopOpacity="0.55"/>
-          <stop offset="100%" stopColor="#F5C518" stopOpacity="0"/>
-        </radialGradient>
-        <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FFE58A"/>
-          <stop offset="55%" stopColor="#F5C518"/>
-          <stop offset="100%" stopColor="#B8860B"/>
-        </linearGradient>
-      </defs>
-      <circle cx="90" cy="95" r="105" fill="url(#glowGrad)"/>
-      {/* coroa de louros */}
-      <g stroke="#F5C518" strokeWidth="2.4" fill="none" opacity="0.95">
-        <path d="M24 42 Q10 95 44 146"/>
-        <path d="M156 42 Q170 95 136 146"/>
-      </g>
-      {louroEsq}{louroDir}
-      {/* escudo */}
-      <path d="M90 14 L138 30 L138 78 Q138 122 90 156 Q42 122 42 78 L42 30 Z" fill="url(#shieldGrad)" stroke="#FFF3C4" strokeWidth="2.5"/>
-      <path d="M90 22 L130 35 L130 78 Q130 114 90 144 Q50 114 50 78 L50 35 Z" fill="#0D0D00"/>
-      <polyline points="66,80 84,100 116,60" fill="none" stroke="#F5C518" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <div style={{ width:172, height:148, margin:"0 auto", background:"radial-gradient(circle, #F5C51888 0%, #F5C51800 62%)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <svg width="172" height="148" viewBox="-20 0 220 190" style={{ display:"block" }}>
+        {/* coroa de louros */}
+        <g stroke="#F5C518" strokeWidth="2.4" fill="none" opacity="0.95">
+          <path d="M24 42 Q10 95 44 146"/>
+          <path d="M156 42 Q170 95 136 146"/>
+        </g>
+        {louroEsq}{louroDir}
+        {/* escudo — preenchimento sólido (evita falha de renderização de gradiente ao gerar a imagem) */}
+        <path d="M90 14 L138 30 L138 78 Q138 122 90 156 Q42 122 42 78 L42 30 Z" fill="#F5C518" stroke="#FFF3C4" strokeWidth="2.5"/>
+        <path d="M90 22 L130 35 L130 78 Q130 114 90 144 Q50 114 50 78 L50 35 Z" fill="#0D0D00"/>
+        <polyline points="66,80 84,100 116,60" fill="none" stroke="#F5C518" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
   );
 };
 
