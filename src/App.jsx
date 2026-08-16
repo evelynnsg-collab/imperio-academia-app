@@ -638,6 +638,7 @@ const Ic = ({ n, size=20, color="currentColor", style={} }) => {
     image:<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>,
     film:<><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></>,
     save:<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>,
+    copy:<><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
     camera:<><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></>,
     whatsapp:null,
   };
@@ -1189,13 +1190,171 @@ const agruparExercicios = (list) => {
   return grupos;
 };
 
+// ─── COPIAR TREINO PARA OUTRO ALUNO ───────────────────────────────────────────
+const CopiarTreinoModal = ({ alunoOrigem, alunos, onUpdateOutroAluno, onClose }) => {
+  const [busca, setBusca] = useState("");
+  const [destino, setDestino] = useState(null);
+  const fichasOrigem = Object.keys(alunoOrigem.treinos || {});
+  const [fichasSel, setFichasSel] = useState(() => Object.fromEntries(fichasOrigem.map(f=>[f,true])));
+  const [conflito, setConflito] = useState(false);
+  const [copiando, setCopiando] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, []);
+
+  const resultados = busca.trim().length>0
+    ? alunos.filter(a => a.id!==alunoOrigem.id && a.nome.toLowerCase().includes(busca.toLowerCase())).slice(0,20)
+    : [];
+
+  // Clona os exercícios com ids novos, preservando o agrupamento de bi-set/tri-set
+  const clonarFicha = (lista) => {
+    const mapaSuperset = {};
+    return (lista||[]).map((ex,i) => {
+      const novoId = Date.now() + i + Math.floor(Math.random()*10000);
+      if (!ex.supersetId) return { ...ex, id: novoId };
+      if (!mapaSuperset[ex.supersetId]) mapaSuperset[ex.supersetId] = "ss_"+Date.now()+"_"+Math.floor(Math.random()*100000);
+      return { ...ex, id: novoId, supersetId: mapaSuperset[ex.supersetId] };
+    });
+  };
+
+  const nomeUnico = (base, existentes) => {
+    if (!existentes.includes(base)) return base;
+    let i = 2;
+    while (existentes.includes(`${base} (${i})`)) i++;
+    return `${base} (${i})`;
+  };
+
+  const executarCopia = async (modo) => { // modo: "substituir" | "adicionar" | null
+    setCopiando(true); setErro("");
+    try {
+      const fichasEscolhidas = fichasOrigem.filter(f => fichasSel[f]);
+      const novoTreinos = { ...(destino.treinos || {}) };
+
+      fichasEscolhidas.forEach(f => {
+        const nomeFinal = modo === "adicionar" ? nomeUnico(f, Object.keys(novoTreinos)) : f;
+        novoTreinos[nomeFinal] = clonarFicha(alunoOrigem.treinos[f]);
+      });
+
+      await onUpdateOutroAluno({ ...destino, treinos: novoTreinos });
+      setSucesso(true);
+      setTimeout(() => onClose(), 1800);
+    } catch (e) {
+      setErro("Não foi possível copiar o treino. Tenta de novo.");
+      setCopiando(false);
+    }
+  };
+
+  const handleConfirmar = () => {
+    const temFichas = Object.keys(destino.treinos || {}).length > 0;
+    if (temFichas) setConflito(true);
+    else executarCopia(null);
+  };
+
+  const qtdSel = Object.values(fichasSel).filter(Boolean).length;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+      <div style={{ background:T.card, borderRadius:22, width:"100%", maxWidth:400, maxHeight:"85vh", display:"flex", flexDirection:"column", border:`1px solid ${T.yellow}33` }}>
+
+        {sucesso ? (
+          <div style={{ padding:"40px 24px", textAlign:"center" }}>
+            <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:64, height:64, borderRadius:"50%", border:`3px solid ${T.green}`, marginBottom:16 }}>
+              <Ic n="check" size={28} color={T.green}/>
+            </div>
+            <p style={{ margin:0, fontSize:16, fontWeight:800, color:T.text }}>Treino copiado com sucesso!</p>
+          </div>
+        ) : conflito ? (
+          <div style={{ padding:"24px 20px" }}>
+            <p style={{ margin:"0 0 6px", fontSize:15, fontWeight:800, color:T.text }}>⚠️ Este aluno já possui treino cadastrado</p>
+            <p style={{ margin:"0 0 20px", fontSize:13, color:T.text3 }}>O que deseja fazer com o treino de <b style={{color:T.text}}>{destino.nome}</b>?</p>
+            {erro && <p style={{ margin:"0 0 12px", color:T.red, fontSize:12 }}>{erro}</p>}
+            <button disabled={copiando} onClick={()=>executarCopia("substituir")} style={{ width:"100%", background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:12, padding:"12px 14px", color:T.red, fontWeight:700, fontSize:13, cursor:"pointer", marginBottom:8 }}>
+              Substituir treino atual
+            </button>
+            <button disabled={copiando} onClick={()=>executarCopia("adicionar")} style={{ width:"100%", background:T.yellowDim, border:`1px solid ${T.yellow}55`, borderRadius:12, padding:"12px 14px", color:T.yellow, fontWeight:700, fontSize:13, cursor:"pointer", marginBottom:8 }}>
+              {copiando ? "Copiando..." : "Adicionar como novo treino"}
+            </button>
+            <button disabled={copiando} onClick={()=>setConflito(false)} style={{ width:"100%", background:"transparent", border:`1px solid ${T.border}`, borderRadius:12, padding:"12px 14px", color:T.text3, fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              Cancelar
+            </button>
+          </div>
+        ) : destino ? (
+          <div style={{ padding:"24px 20px" }}>
+            <p style={{ margin:"0 0 4px", fontSize:15, fontWeight:800, color:T.text }}>Copiar treino</p>
+            <p style={{ margin:"0 0 18px", fontSize:13, color:T.text3 }}>Deseja copiar o treino de <b style={{color:T.text}}>{alunoOrigem.nome}</b> para <b style={{color:T.text}}>{destino.nome}</b>?</p>
+
+            {fichasOrigem.length>1 && (
+              <div style={{ marginBottom:18 }}>
+                <p style={{ margin:"0 0 8px", fontSize:11, fontWeight:700, color:T.text3, letterSpacing:0.5 }}>QUAIS TREINOS COPIAR</p>
+                {fichasOrigem.map(f => (
+                  <label key={f} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 10px", background:T.card2, borderRadius:10, marginBottom:6, cursor:"pointer" }}>
+                    <input type="checkbox" checked={!!fichasSel[f]} onChange={()=>setFichasSel(p=>({...p,[f]:!p[f]}))} style={{ width:16, height:16, accentColor:T.yellow, cursor:"pointer" }}/>
+                    <span style={{ fontSize:13, color:T.text, fontWeight:600 }}>{f}</span>
+                    <span style={{ fontSize:11, color:T.text3, marginLeft:"auto" }}>{(alunoOrigem.treinos[f]||[]).length} exercícios</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {erro && <p style={{ margin:"0 0 12px", color:T.red, fontSize:12 }}>{erro}</p>}
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setDestino(null)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, borderRadius:12, padding:"12px 14px", color:T.text3, fontWeight:700, fontSize:13, cursor:"pointer" }}>Cancelar</button>
+              <button disabled={copiando||qtdSel===0} onClick={handleConfirmar} style={{ flex:2, background:qtdSel===0?T.border:T.gold, border:"none", borderRadius:12, padding:"12px 14px", color:qtdSel===0?T.text3:T.bg, fontWeight:800, fontSize:13, cursor:qtdSel===0?"default":"pointer" }}>
+                {copiando ? "Copiando..." : "Copiar treino"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding:"20px 20px 14px", borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <span style={{ fontSize:15, fontWeight:800, color:T.text }}>Copiar treino para outro aluno</span>
+                <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={14} color={T.text3}/></button>
+              </div>
+              <div style={{ position:"relative" }}>
+                <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}><Ic n="search" size={15} color={T.text3}/></div>
+                <input autoFocus value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Pesquisar aluno por nome..." style={{ width:"100%", background:T.bg2, border:`1px solid ${busca?T.yellow:T.border}`, borderRadius:10, padding:"10px 12px 10px 38px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+            </div>
+            <div style={{ padding:"10px 14px 20px", overflowY:"auto", flex:1 }}>
+              {busca.trim().length===0 && (
+                <p style={{ textAlign:"center", color:T.text3, fontSize:13, padding:"30px 10px" }}>Digite o nome do aluno que vai receber o treino de <b style={{color:T.text2}}>{alunoOrigem.nome}</b>.</p>
+              )}
+              {busca.trim().length>0 && resultados.length===0 && (
+                <p style={{ textAlign:"center", color:T.text3, fontSize:13, padding:"30px 10px" }}>Nenhum aluno encontrado.</p>
+              )}
+              {resultados.map(a => (
+                <div key={a.id} onClick={()=>setDestino(a)} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:12, cursor:"pointer", marginBottom:6, background:T.card2 }}>
+                  <div style={{ width:34, height:34, borderRadius:"50%", background:T.gold, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Ic n="user" size={16} color={T.bg}/></div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ margin:0, fontSize:13, fontWeight:700, color:T.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.nome}</p>
+                    <p style={{ margin:0, fontSize:11, color:T.text3 }}>{Object.keys(a.treinos||{}).length>0 ? `${Object.keys(a.treinos).length} treino(s) cadastrado(s)` : "sem treino cadastrado"}</p>
+                  </div>
+                  <Ic n="chevR" size={16} color={T.text3}/>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── ADMIN: ALUNO DETALHE ─────────────────────────────────────────────────────
-const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => {
+const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, alunos=[], onUpdateOutroAluno }) => {
   const [dados,setDados]=useState({...aluno});
   const [treinos,setTreinos]=useState(aluno.treinos||{});
   const [cardapio,setCardapio]=useState(aluno.cardapio||{});
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"Treino A");
   const [showConfirm,setShowConfirm]=useState(false);
+  const [showCopiarTreino,setShowCopiarTreino]=useState(false);
   const [saved,setSaved]=useState(false);
   // Treino state
   const [editEx,setEditEx]=useState(null);
@@ -1386,7 +1545,21 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false }) => 
               ) : (
                 <button onClick={()=>setShowAddFicha(true)} style={{ background:"transparent", border:`1px dashed ${T.border}`, borderRadius:10, padding:"8px 14px", color:T.text3, fontSize:13, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>+ Nova ficha</button>
               )}
+              {!soCardapio && (
+                <button onClick={()=>setShowCopiarTreino(true)} style={{ background:"transparent", border:`1px solid ${T.yellow}55`, borderRadius:10, padding:"8px 14px", color:T.yellow, fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, display:"flex", alignItems:"center", gap:6 }}>
+                  <Ic n="copy" size={14} color={T.yellow}/>Copiar treino
+                </button>
+              )}
             </div>
+
+            {showCopiarTreino && (
+              <CopiarTreinoModal
+                alunoOrigem={{...aluno, treinos}}
+                alunos={alunos}
+                onUpdateOutroAluno={onUpdateOutroAluno}
+                onClose={()=>setShowCopiarTreino(false)}
+              />
+            )}
 
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
               <span style={{ fontSize:15, fontWeight:800, color:T.text }}>{treinoAtivo} <span style={{ color:T.text3, fontWeight:400, fontSize:13 }}>({exList.length} exercícios)</span></span>
@@ -2351,6 +2524,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   if(alunoSel) return (
     <AlunoDetalhe
       aluno={alunoSel}
+      alunos={alunos}
+      onUpdateOutroAluno={onUpdateAluno}
       onBack={()=>setAlunoSel(null)}
       onSave={async(updated)=>{ await onUpdateAluno({...updated,id:alunoSel.id}); setAlunoSel({...updated,id:alunoSel.id}); }}
       onDelete={async(id)=>{ await onDeleteAluno(id); setAlunoSel(null); }}
