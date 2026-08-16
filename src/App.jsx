@@ -714,17 +714,24 @@ const Textarea = ({ label, value, onChange, placeholder="", rows=3 }) => (
       style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"inherit" }}/>
   </div>
 );
-const Modal = ({ title, onClose, children }) => (
-  <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-    <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto", padding:"0 0 40px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
-        <span style={{ fontSize:16, fontWeight:800, color:T.text }}>{title}</span>
-        <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
+const Modal = ({ title, onClose, children }) => {
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, []);
+  return (
+    <div className="modal-sheet-overlay" style={{ position:"fixed", inset:0, background:"#000C", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div className="modal-sheet-inner" style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto", padding:"0 0 40px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
+          <span style={{ fontSize:16, fontWeight:800, color:T.text }}>{title}</span>
+          <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
+        </div>
+        <div style={{ padding:"16px 20px" }}>{children}</div>
       </div>
-      <div style={{ padding:"16px 20px" }}>{children}</div>
     </div>
-  </div>
-);
+  );
+};
 const Confirm = ({ msg, onYes, onNo }) => (
   <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
     <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
@@ -927,8 +934,8 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
 
   if (editando && exSel) {
     return (
-      <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-        <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
+      <div className="modal-sheet-overlay" style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div className="modal-sheet-inner" style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
             <span style={{ fontSize:15, fontWeight:800, color:T.text }}>Configurar exercício</span>
             <button onClick={()=>setEditando(null)} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
@@ -962,8 +969,8 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
   if (exSel) {
     const cor = GRUPOS_CORES[exSel.grupo] || T.yellow;
     return (
-      <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-        <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
+      <div className="modal-sheet-overlay" style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div className="modal-sheet-inner" style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"92vh", overflowY:"auto" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"18px 20px 14px", borderBottom:`1px solid ${T.border}`, position:"sticky", top:0, background:T.card, zIndex:2 }}>
             <button onClick={()=>setExSel(null)} style={{ background:"none", border:"none", cursor:"pointer", color:T.text3, display:"flex", alignItems:"center", gap:6, fontSize:14 }}><Ic n="back" size={16} color={T.text3}/>Biblioteca</button>
             <button onClick={onClose} style={{ background:T.card2, border:"none", borderRadius:50, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Ic n="x" size={16} color={T.text3}/></button>
@@ -1019,8 +1026,8 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
   }
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+    <div className="modal-sheet-overlay" style={{ position:"fixed", inset:0, background:"#000D", zIndex:250, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div className="modal-sheet-inner" style={{ background:T.card, borderRadius:"20px 20px 0 0", width:"100%", maxWidth:430, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
         <div style={{ padding:"18px 20px 12px", borderBottom:`1px solid ${T.border}`, background:T.card, flexShrink:0 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <span style={{ fontSize:16, fontWeight:800, color:T.text }}>📚 Biblioteca de Exercícios</span>
