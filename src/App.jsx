@@ -896,6 +896,14 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
   const [customExs, setCustomExs] = useState([]);
   const [fotoCustom, setFotoCustom] = useState({});
 
+  // Trava o scroll da página de fundo enquanto o modal está aberto (evita
+  // que a folha "fixa" fique fora da área visível ao rolar a tela por trás)
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
