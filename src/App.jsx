@@ -3670,8 +3670,9 @@ export default function App() {
 
   // ── Adiciona aluno (cria auth + salva no Firestore) ──────────────────────
   const addAluno = useCallback(async (novoAluno) => {
-    await criarContaAluno(novoAluno.cpf, novoAluno.senha || novoAluno.cpf);
-    await salvarAluno({ ...novoAluno, id: novoAluno.cpf });
+    const cpfLimpo = String(novoAluno.cpf||"").replace(/\D/g,"");
+    await criarContaAluno(cpfLimpo, novoAluno.senha || cpfLimpo);
+    await salvarAluno({ ...novoAluno, cpf:cpfLimpo, id: cpfLimpo });
   }, []);
 
   // ── Deleta aluno ──────────────────────────────────────────────────────────
