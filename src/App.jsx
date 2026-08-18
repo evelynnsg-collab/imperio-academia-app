@@ -1378,6 +1378,9 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const [migrando,setMigrando]=useState(false);
   const [migradoOk,setMigradoOk]=useState(null); // { cpfNovo }
   const [erroMigracao,setErroMigracao]=useState("");
+  // Redefinir acesso (login/senha travados por causa de cadastro duplicado)
+  const [redefinindo,setRedefinindo]=useState(false);
+  const [statusRedefinir,setStatusRedefinir]=useState(null); // { ok, msg }
 
   const salvarTudo = () => {
     const cpfNovo = String(dados.cpf||"").replace(/\D/g,"");
@@ -1400,6 +1403,25 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
       setErroMigracao("Não foi possível atualizar o CPF. Tenta de novo em instantes.");
     }
     setMigrando(false);
+  };
+
+  const redefinirAcesso = async () => {
+    const cpfLimpo = String(dados.cpf||"").replace(/\D/g,"");
+    const senhaAtual = dados.senha || cpfLimpo;
+    if (!cpfLimpo) { setStatusRedefinir({ ok:false, msg:"Preencha o CPF antes de redefinir o acesso." }); return; }
+    setRedefinindo(true); setStatusRedefinir(null);
+    try {
+      const email = `${cpfLimpo}@imperio.app`;
+      await createUserWithEmailAndPassword(fbAuth, email, senhaAtual);
+      setStatusRedefinir({ ok:true, msg:`✓ Acesso criado. Login: ${cpfLimpo} · Senha: ${senhaAtual}` });
+    } catch(e) {
+      if (e.code === "auth/email-already-in-use") {
+        setStatusRedefinir({ ok:false, msg:"Esse login já existe no Firebase, mas com uma senha diferente da que está aqui (provavelmente de um cadastro duplicado). Pra corrigir, é preciso apagar essa conta uma vez no Firebase Console → Authentication → Users → procurar por \""+email+"\" → excluir. Depois disso, clica em \"Redefinir acesso\" aqui de novo que o app recria certinho." });
+      } else {
+        setStatusRedefinir({ ok:false, msg:"Não foi possível redefinir agora. Tenta de novo em instantes." });
+      }
+    }
+    setRedefinindo(false);
   };
 
   // ── helpers treino
@@ -1574,6 +1596,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
               <Inp label="NOME COMPLETO" value={dados.nome} onChange={v=>setDados(p=>({...p,nome:v}))}/>
               <Inp label="CPF" value={dados.cpf} onChange={v=>setDados(p=>({...p,cpf:v}))}/>
               <Inp label="SENHA DE ACESSO" value={dados.senha} onChange={v=>setDados(p=>({...p,senha:v}))}/>
+              <button onClick={redefinirAcesso} disabled={redefinindo} style={{ width:"100%", background:"transparent", border:`1px solid ${T.yellow}55`, borderRadius:10, padding:"10px 14px", color:T.yellow, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:14, marginTop:-4 }}>
+                ↺ {redefinindo ? "Redefinindo..." : "Redefinir acesso (login/senha)"}
+              </button>
+              {statusRedefinir && (
+                <p style={{ margin:"-10px 0 14px", fontSize:12, color:statusRedefinir.ok?T.green:T.red, lineHeight:1.5 }}>{statusRedefinir.msg}</p>
+              )}
               <Inp label="TELEFONE" value={dados.telefone||""} onChange={v=>setDados(p=>({...p,telefone:v}))} placeholder="(11) 9 0000-0000"/>
               <Inp label="E-MAIL" value={dados.email||""} onChange={v=>setDados(p=>({...p,email:v}))} placeholder="email@exemplo.com"/>
               <Inp label="DATA DE NASCIMENTO" type="date" value={dados.nascimento||""} onChange={v=>setDados(p=>({...p,nascimento:v}))}/>
@@ -3740,8 +3768,11 @@ export default function App() {
   // ── Adiciona aluno (cria auth + salva no Firestore) ──────────────────────
   const addAluno = useCallback(async (novoAluno) => {
     const cpfLimpo = String(novoAluno.cpf||"").replace(/\D/g,"");
-    await criarContaAluno(cpfLimpo, novoAluno.senha || cpfLimpo);
-    await salvarAluno({ ...novoAluno, cpf:cpfLimpo, id: cpfLimpo });
+    // Se a senha não foi definida explicitamente (ficou igual ao CPF cru, com
+    // pontuação e tudo), usa o CPF já limpo pra não gerar senha desencontrada.
+    const senhaFinal = (novoAluno.senha && novoAluno.senha !== novoAluno.cpf) ? novoAluno.senha : cpfLimpo;
+    await criarContaAluno(cpfLimpo, senhaFinal);
+    await salvarAluno({ ...novoAluno, cpf:cpfLimpo, senha:senhaFinal, id: cpfLimpo });
   }, []);
 
   // ── Deleta aluno ──────────────────────────────────────────────────────────
