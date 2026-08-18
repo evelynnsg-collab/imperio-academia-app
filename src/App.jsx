@@ -47,6 +47,15 @@ async function criarContaAluno(cpf, senha) {
     if (e.code !== "auth/email-already-in-use") throw e;
   }
 }
+// Corrige o CPF de um aluno: recria o acesso de login com o CPF certo
+// (senha redefinida pro novo CPF) e move os dados pro novo documento.
+async function migrarCpfAluno(dadosCompletos, cpfAntigo, cpfNovo) {
+  await criarContaAluno(cpfNovo, cpfNovo);
+  await salvarAluno({ ...dadosCompletos, cpf:cpfNovo, id:cpfNovo });
+  if (cpfAntigo && cpfAntigo !== cpfNovo) {
+    await deletarAluno(cpfAntigo);
+  }
+}
 
 
 // ─── IMAGENS REAIS DE EXERCÍCIOS (Free Exercise DB — domínio público) ─────────
@@ -1364,10 +1373,33 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   // Cardapio state
   const [refSel,setRefSel]=useState(null);
   const [editAlim,setEditAlim]=useState(null);
+  // CPF correction / login migration
+  const [confirmMigracao,setConfirmMigracao]=useState(null); // { cpfAntigo, cpfNovo }
+  const [migrando,setMigrando]=useState(false);
+  const [migradoOk,setMigradoOk]=useState(null); // { cpfNovo }
+  const [erroMigracao,setErroMigracao]=useState("");
 
   const salvarTudo = () => {
+    const cpfNovo = String(dados.cpf||"").replace(/\D/g,"");
+    const cpfAtual = aluno.id;
+    if (!soCardapio && cpfNovo && cpfNovo !== cpfAtual) {
+      setConfirmMigracao({ cpfAntigo:cpfAtual, cpfNovo });
+      return;
+    }
     onSave({ ...dados, treinos, cardapio });
     setSaved(true); setTimeout(()=>setSaved(false),2000);
+  };
+
+  const confirmarMigracaoCpf = async () => {
+    setMigrando(true); setErroMigracao("");
+    try {
+      await migrarCpfAluno({ ...dados, treinos, cardapio }, confirmMigracao.cpfAntigo, confirmMigracao.cpfNovo);
+      setMigradoOk({ cpfNovo:confirmMigracao.cpfNovo });
+      setConfirmMigracao(null);
+    } catch(e) {
+      setErroMigracao("Não foi possível atualizar o CPF. Tenta de novo em instantes.");
+    }
+    setMigrando(false);
   };
 
   // ── helpers treino
@@ -1462,6 +1494,43 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
         <Modal title={refSel} onClose={()=>setRefSel(null)}>
           <RefForm ref_name={refSel} data={getRef(refSel)} onSave={(d)=>{ saveRef(refSel,d); setRefSel(null); }} onAddAlim={(a)=>addAlim(refSel,a)} onRemoveAlim={(id)=>removeAlim(refSel,id)}/>
         </Modal>
+      )}
+
+      {confirmMigracao && (
+        <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:T.card, borderRadius:22, width:"100%", maxWidth:380, padding:"24px 20px", border:`1px solid ${T.yellow}33` }}>
+            <p style={{ margin:"0 0 6px", fontSize:15, fontWeight:800, color:T.text }}>🔑 CPF alterado</p>
+            <p style={{ margin:"0 0 16px", fontSize:13, color:T.text3, lineHeight:1.5 }}>
+              Você mudou o CPF de <b style={{color:T.text}}>{confirmMigracao.cpfAntigo}</b> para <b style={{color:T.text}}>{confirmMigracao.cpfNovo}</b>. Isso recria o acesso de login desse aluno com o CPF novo — a senha será redefinida para o CPF novo também. Nenhum dado (treinos, fotos, cardápio) se perde.
+            </p>
+            {erroMigracao && <p style={{ margin:"0 0 12px", color:T.red, fontSize:12 }}>{erroMigracao}</p>}
+            <div style={{ display:"flex", gap:10 }}>
+              <button disabled={migrando} onClick={()=>setConfirmMigracao(null)} style={{ flex:1, background:"transparent", border:`1px solid ${T.border}`, borderRadius:12, padding:"12px 14px", color:T.text3, fontWeight:700, fontSize:13, cursor:"pointer" }}>Cancelar</button>
+              <button disabled={migrando} onClick={confirmarMigracaoCpf} style={{ flex:2, background:T.gold, border:"none", borderRadius:12, padding:"12px 14px", color:T.bg, fontWeight:800, fontSize:13, cursor:"pointer" }}>
+                {migrando ? "Atualizando..." : "Confirmar e atualizar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {migradoOk && (
+        <div style={{ position:"fixed", inset:0, background:"#000D", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:T.card, borderRadius:22, width:"100%", maxWidth:380, padding:"28px 22px", textAlign:"center", border:`1px solid ${T.green}44` }}>
+            <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:56, height:56, borderRadius:"50%", border:`3px solid ${T.green}`, marginBottom:14 }}>
+              <Ic n="check" size={26} color={T.green}/>
+            </div>
+            <p style={{ margin:"0 0 10px", fontSize:15, fontWeight:800, color:T.text }}>CPF atualizado com sucesso!</p>
+            <div style={{ background:T.card2, borderRadius:12, padding:"12px 14px", marginBottom:16, textAlign:"left" }}>
+              <p style={{ margin:"0 0 4px", fontSize:12, color:T.text3 }}>Novo login (CPF)</p>
+              <p style={{ margin:"0 0 10px", fontSize:14, fontWeight:800, color:T.text }}>{migradoOk.cpfNovo}</p>
+              <p style={{ margin:"0 0 4px", fontSize:12, color:T.text3 }}>Nova senha</p>
+              <p style={{ margin:0, fontSize:14, fontWeight:800, color:T.text }}>{migradoOk.cpfNovo}</p>
+            </div>
+            <p style={{ margin:"0 0 18px", fontSize:12, color:T.text3 }}>Avise o aluno sobre o novo login e senha.</p>
+            <Btn onClick={onBack} style={{ width:"100%", color:T.bg }}>Voltar pra lista de alunos</Btn>
+          </div>
+        </div>
       )}
 
       {/* Header */}
