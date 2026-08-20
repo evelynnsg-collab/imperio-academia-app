@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 import html2canvas from "html2canvas";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
@@ -606,6 +606,11 @@ const T_LIGHT = {
   gold:"linear-gradient(135deg,#F5C518,#FFD700)",
 };
 
+// Contexto de tema — os componentes compartilhados leem daqui. Por padrão
+// (fora do admin/nutri) vale o tema escuro; dentro do painel admin/nutri,
+// um Provider troca pra T_LIGHT.
+const ThemeContext = createContext(T);
+
 // ─── LOGO IMPÉRIO ─────────────────────────────────────────────────────────────
 // LOGO_URL = versão com fundo transparente (ícone / marca d'água)
 // LOGO_BG_URL = versão com fundo preto (imagem de fundo da tela de login)
@@ -676,7 +681,9 @@ const Ic = ({ n, size=20, color="currentColor", style={} }) => {
 };
 
 // ─── SVG EXERCISE ILLUSTRATIONS ───────────────────────────────────────────────
-const ExIllust = ({ name, color=T.yellow, size="thumb" }) => {
+const ExIllust = ({ name, color, size="thumb" }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
   const w=size==="hero"?400:88; const h=size==="hero"?200:88; const s=size==="hero"?1.55:0.34;
   const ills = {
     "Leg Press":<g><rect x="20" y="120" width="220" height="12" rx="4" fill="#444"/><rect x="20" y="80" width="12" height="60" rx="4" fill="#555"/><rect x="228" y="40" width="12" height="100" rx="4" fill="#555"/><rect x="50" y="90" width="70" height="14" rx="6" fill="#777"/><rect x="165" y="50" width="65" height="50" rx="6" fill="#666"/><line x1="32" y1="50" x2="180" y2="50" stroke="#555" strokeWidth="6"/><rect x="230" y="40" width="20" height="8" rx="2" fill={color} opacity="0.9"/><rect x="230" y="52" width="20" height="8" rx="2" fill={color} opacity="0.7"/><circle cx="75" cy="68" r="12" fill="#DDD"/><line x1="75" y1="80" x2="75" y2="102" stroke="#DDD" strokeWidth="7" strokeLinecap="round"/><line x1="75" y1="102" x2="165" y2="65" stroke="#DDD" strokeWidth="6" strokeLinecap="round"/></g>,
@@ -697,10 +704,13 @@ const ExIllust = ({ name, color=T.yellow, size="thumb" }) => {
 };
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
-const Card = ({ children, style={}, onClick }) => (
-  <div onClick={onClick} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, ...style, cursor:onClick?"pointer":"default" }}>{children}</div>
-);
-const Btn = ({ children, onClick, color=T.yellow, style={}, small=false, outline=false, danger=false }) => {
+const Card = ({ children, style={}, onClick }) => {
+  const T = useContext(ThemeContext);
+  return <div onClick={onClick} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, ...style, cursor:onClick?"pointer":"default" }}>{children}</div>;
+};
+const Btn = ({ children, onClick, color, style={}, small=false, outline=false, danger=false }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
   const bg = danger ? T.red : outline ? "transparent" : color;
   const textColor = outline ? (danger ? T.red : color) : (color===T.yellow ? T.bg : T.text);
   const border = outline || danger ? `1px solid ${danger?T.red:color}` : "none";
@@ -710,33 +720,45 @@ const Btn = ({ children, onClick, color=T.yellow, style={}, small=false, outline
     </button>
   );
 };
-const YBadge = ({ text, color=T.yellow }) => (
-  <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:700, letterSpacing:0.4, flexShrink:0 }}>{text}</span>
-);
-const Sec = ({ title, action, onAction, children, style={} }) => (
-  <div style={{ marginBottom:20, ...style }}>
-    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-      <span style={{ fontSize:15, fontWeight:800, color:T.text, letterSpacing:-0.3 }}>{title}</span>
-      {action && <span onClick={onAction} style={{ fontSize:12, color:T.yellow, cursor:"pointer", fontWeight:700 }}>{action}</span>}
+const YBadge = ({ text, color }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
+  return <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:700, letterSpacing:0.4, flexShrink:0 }}>{text}</span>;
+};
+const Sec = ({ title, action, onAction, children, style={} }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:20, ...style }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <span style={{ fontSize:15, fontWeight:800, color:T.text, letterSpacing:-0.3 }}>{title}</span>
+        {action && <span onClick={onAction} style={{ fontSize:12, color:T.yellow, cursor:"pointer", fontWeight:700 }}>{action}</span>}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
-const Inp = ({ label, value, onChange, placeholder="", type="text", style={} }) => (
-  <div style={{ marginBottom:12 }}>
-    {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
-    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", ...style }}/>
-  </div>
-);
-const Textarea = ({ label, value, onChange, placeholder="", rows=3 }) => (
-  <div style={{ marginBottom:12 }}>
-    {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
-    <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"inherit" }}/>
-  </div>
-);
+  );
+};
+const Inp = ({ label, value, onChange, placeholder="", type="text", style={} }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:12 }}>
+      {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", ...style }}/>
+    </div>
+  );
+};
+const Textarea = ({ label, value, onChange, placeholder="", rows=3 }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:12 }}>
+      {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+        style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"inherit" }}/>
+    </div>
+  );
+};
 const Modal = ({ title, onClose, children }) => {
+  const T = useContext(ThemeContext);
   useEffect(() => {
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -754,21 +776,25 @@ const Modal = ({ title, onClose, children }) => {
     </div>
   );
 };
-const Confirm = ({ msg, onYes, onNo }) => (
-  <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-    <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
-      <p style={{ color:T.text, fontSize:15, fontWeight:600, marginBottom:20, textAlign:"center" }}>{msg}</p>
-      <div style={{ display:"flex", gap:10 }}>
-        <Btn onClick={onNo} outline style={{ flex:1 }}>Cancelar</Btn>
-        <Btn onClick={onYes} danger style={{ flex:1 }}>Excluir</Btn>
+const Confirm = ({ msg, onYes, onNo }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
+        <p style={{ color:T.text, fontSize:15, fontWeight:600, marginBottom:20, textAlign:"center" }}>{msg}</p>
+        <div style={{ display:"flex", gap:10 }}>
+          <Btn onClick={onNo} outline style={{ flex:1 }}>Cancelar</Btn>
+          <Btn onClick={onYes} danger style={{ flex:1 }}>Excluir</Btn>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 
 // ─── COMPONENTE DE IMAGEM DO EXERCÍCIO (real + fallback SVG) ─────────────────
 const ExImg = ({ nome, musculo, cor, imgUrl, style={} }) => {
+  const T = useContext(ThemeContext);
   const [imgOk, setImgOk] = useState(true);
   const src = imgUrl || getExImg(nome);
   if (src && imgOk) {
@@ -918,6 +944,7 @@ const BIBLIOTECA = BIBLIOTECA_FULL;
 
 // ─── BIBLIOTECA MODAL (para admin montar treino) ───────────────────────────────
 const BibliotecaModal = ({ onAdd, onClose }) => {
+  const T = useContext(ThemeContext);
   const [grupoFiltro, setGrupoFiltro] = useState("Todos");
   const [busca, setBusca] = useState("");
   const [exSel, setExSel] = useState(null);
@@ -2166,6 +2193,7 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
 
 // ─── BIBLIOTECA ADMIN ─────────────────────────────────────────────────────────
 const BibliotecaAdmin = () => {
+  const T = useContext(ThemeContext);
   // customExs: exercícios adicionados/editados pelo admin (salvos no Firestore)
   const [customExs, setCustomExs] = useState([]);
   const [fotoCustom, setFotoCustom] = useState({}); // { [exId]: base64 } fotos sobrescritas
@@ -2420,6 +2448,7 @@ const BibliotecaAdmin = () => {
 
 // ─── EDITOR DE EXERCÍCIO (novo ou editar) ────────────────────────────────────
 const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg }) => {
+  const T = useContext(ThemeContext);
   const [f, setF] = useState({
     ...ex,
     passos: ex.passos?.length ? ex.passos : [""],
@@ -2586,6 +2615,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   );
 
   return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
       <div style={{ background:`linear-gradient(135deg,#FFFFFF,#EAFBF1)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}55`, position:"sticky", top:0, zIndex:30 }}>
@@ -2624,6 +2654,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
         </div>
       </div>
     </div>
+    </ThemeContext.Provider>
   );
 };
 
@@ -2736,6 +2767,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const ADMIN_TABS = role==="dono" ? ADMIN_TABS_ALL.filter(t=>t.id!=="config") : ADMIN_TABS_ALL;
 
   return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
       {showBackupAuth && (
@@ -2914,6 +2946,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
         )}
       </div>
     </div>
+    </ThemeContext.Provider>
   );
 };
 
