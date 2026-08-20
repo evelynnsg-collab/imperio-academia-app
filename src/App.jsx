@@ -15,7 +15,7 @@ const firebaseConfig = {
   appId: "1:583980259345:web:9425a8afb1325a66b779b0"
 };
 
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebase/storage";
+import { getStorage, ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, listAll } from "firebase/storage";
 
 const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
@@ -2213,6 +2213,7 @@ const BibliotecaAdmin = () => {
   const [exSel, setExSel] = useState(null);  // exercício em detalhe/edição
   const [modo, setModo] = useState(null);     // "ver" | "editar" | "novo"
   const [loading, setLoading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(null); // progresso do upload de video (0-100)
   const [msg, setMsg] = useState("");
 
   // Carrega customizações do Firestore ao montar
@@ -2231,7 +2232,7 @@ const BibliotecaAdmin = () => {
 
   // Salva exercício no Firestore (foto vai pro Storage, não fica no documento)
   const salvarExercicio = async (ex) => {
-    setLoading(true); setMsg("");
+    setLoading(true); setMsg(""); setUploadPct(null);
     try {
       const id = ex.id || "custom_" + Date.now();
       let fotoFinal = ex._fotoBase64 || "";
@@ -2245,12 +2246,22 @@ const BibliotecaAdmin = () => {
         fotoFinal = await getDownloadURL(imgRef);
       }
       let videoFinal = ex.video_url || "";
-      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage.
+      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage —
+      // com barra de progresso, porque vídeo pode demorar bastante numa
+      // conexão de celular mais lenta.
       if (ex._videoFile) {
-        const ext = ex._videoFile.type === "image/gif" ? "gif" : (ex._videoFile.type === "video/webm" ? "webm" : "mp4");
+        const ext = ex._videoFile.type === "image/gif" ? "gif" : (ex._videoFile.type === "video/webm" ? "webm" : (ex._videoFile.type === "video/quicktime" ? "mov" : "mp4"));
         const vidRef = storageRef(storage, `biblioteca_custom/${id}_demo.${ext}`);
-        await uploadBytes(vidRef, ex._videoFile);
-        videoFinal = await getDownloadURL(vidRef);
+        setUploadPct(0);
+        videoFinal = await new Promise((resolve, reject) => {
+          const task = uploadBytesResumable(vidRef, ex._videoFile);
+          task.on("state_changed",
+            snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+            err => reject(err),
+            async () => resolve(await getDownloadURL(vidRef))
+          );
+        });
+        setUploadPct(null);
       }
       const { _videoFile, _videoPreview, ...exSemAuxiliares } = ex;
       const data = { ...exSemAuxiliares, id, _fotoBase64: fotoFinal, video_url: videoFinal };
@@ -2265,6 +2276,7 @@ const BibliotecaAdmin = () => {
       setTimeout(() => { setMsg(""); setModo(null); setExSel(null); }, 1200);
     } catch(e) {
       setMsg("❌ Erro ao salvar: " + e.message);
+      setUploadPct(null);
     }
     setLoading(false);
   };
@@ -2306,6 +2318,7 @@ const BibliotecaAdmin = () => {
         onBack={() => { setModo(exSel ? "ver" : null); }}
         onDelete={customExs.find(e => e.id === exSel?.id) ? () => deletarEx(exSel.id) : null}
         msg={msg}
+        uploadPct={uploadPct}
       />
     );
   }
@@ -2467,7 +2480,7 @@ const BibliotecaAdmin = () => {
 };
 
 // ─── EDITOR DE EXERCÍCIO (novo ou editar) ────────────────────────────────────
-const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg }) => {
+const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg, uploadPct }) => {
   const T = useContext(ThemeContext);
   const [f, setF] = useState({
     ...ex,
@@ -2666,8 +2679,17 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 
       {msg && <div style={{ background:msg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:12, color:msg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{msg}</div>}
 
+      {loading && uploadPct!==null && (
+        <div style={{ marginBottom:12 }}>
+          <div style={{ height:8, background:T.card2, borderRadius:50, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:`${uploadPct}%`, background:T.gold, borderRadius:50, transition:"width 0.2s" }}/>
+          </div>
+          <p style={{ margin:"6px 0 0", fontSize:12, color:T.text3, textAlign:"center" }}>Enviando vídeo... {uploadPct}%</p>
+        </div>
+      )}
+
       <button onClick={handleSave} disabled={loading || !f.nome.trim()} style={{ width:"100%", background:loading?"#333":T.gold, color:T.bg, border:"none", borderRadius:14, padding:16, fontSize:15, fontWeight:900, cursor:loading?"not-allowed":"pointer", opacity:loading||!f.nome.trim()?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxSizing:"border-box" }}>
-        {loading ? "Salvando..." : <><Ic n="save" size={18} color={T.bg}/> Salvar exercício</>}
+        {loading ? (uploadPct!==null ? `Enviando vídeo... ${uploadPct}%` : "Salvando...") : <><Ic n="save" size={18} color={T.bg}/> Salvar exercício</>}
       </button>
     </div>
   );
