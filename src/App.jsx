@@ -793,9 +793,15 @@ const Confirm = ({ msg, onYes, onNo }) => {
 
 
 // ─── COMPONENTE DE IMAGEM DO EXERCÍCIO (real + fallback SVG) ─────────────────
-const ExImg = ({ nome, musculo, cor, imgUrl, style={} }) => {
+const ExImg = ({ nome, musculo, cor, imgUrl, videoUrl, style={} }) => {
   const T = useContext(ThemeContext);
   const [imgOk, setImgOk] = useState(true);
+  if (videoUrl) {
+    return (
+      <video src={videoUrl} autoPlay loop muted playsInline preload="auto"
+        style={{ width:"100%", height:"100%", objectFit:"contain", display:"block", background:T.bg2, ...style }}/>
+    );
+  }
   const src = imgUrl || getExImg(nome);
   if (src && imgOk) {
     return (
@@ -991,7 +997,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           </div>
           <div style={{ padding:"16px 20px 40px" }}>
             <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:16, padding:12, background:T.bg2, borderRadius:12 }}>
-              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:60,height:60}}/></div>
+              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:60,height:60}}/></div>
               <div>
                 <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{exSel.nome}</p>
                 <YBadge text={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow}/>
@@ -1005,7 +1011,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
             <div style={{ display:"flex", gap:10, marginTop:16 }}>
               <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
-              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, video_url:exSel.video_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
                 <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
               </Btn>
             </div>
@@ -1027,7 +1033,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           <div style={{ padding:"16px 20px 40px" }}>
             {/* Anatomy illustration */}
             <div style={{ display:"flex", gap:14, marginBottom:16 }}>
-              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:80,height:80}}/></div>
+              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:80,height:80}}/></div>
               <div style={{ flex:1 }}>
                 <YBadge text={exSel.grupo} color={cor}/>
                 <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
@@ -1104,7 +1110,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
               return (
                 <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
                   <div style={{ position:"relative" }}>
-                    <div style={{aspectRatio:"1",overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
+                    <div style={{aspectRatio:"1",overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
                     <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
                   </div>
                   <div style={{ padding:"10px 10px 12px" }}>
@@ -1757,7 +1763,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
                               <div style={{ width:72, height:72, flexShrink:0, overflow:"hidden" }}>
                                 {ex.img
                                   ? <img src={ex.img} alt={ex.nome} style={{ width:72, height:72, objectFit:"cover", display:"block" }}/>
-                                  : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} style={{width:72,height:72}}/>
+                                  : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:72,height:72}}/>
                                 }
                               </div>
                               <div style={{ flex:1, padding:"10px 12px" }}>
@@ -2238,7 +2244,16 @@ const BibliotecaAdmin = () => {
         await uploadBytes(imgRef, blob);
         fotoFinal = await getDownloadURL(imgRef);
       }
-      const data = { ...ex, id, _fotoBase64: fotoFinal };
+      let videoFinal = ex.video_url || "";
+      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage.
+      if (ex._videoFile) {
+        const ext = ex._videoFile.type === "image/gif" ? "gif" : (ex._videoFile.type === "video/webm" ? "webm" : "mp4");
+        const vidRef = storageRef(storage, `biblioteca_custom/${id}_demo.${ext}`);
+        await uploadBytes(vidRef, ex._videoFile);
+        videoFinal = await getDownloadURL(vidRef);
+      }
+      const { _videoFile, _videoPreview, ...exSemAuxiliares } = ex;
+      const data = { ...exSemAuxiliares, id, _fotoBase64: fotoFinal, video_url: videoFinal };
       await setDoc(doc(db, "biblioteca_custom", id), data);
       if(customExs.find(e => e.id === id)) {
         setCustomExs(p => p.map(e => e.id === id ? data : e));
@@ -2418,7 +2433,7 @@ const BibliotecaAdmin = () => {
               <div style={{ aspectRatio:"1", overflow:"hidden", background:T.bg2, position:"relative" }}>
                 {fotoCustomizada
                   ? <img src={fotoCustomizada} alt={ex.nome} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
-                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} videoUrl={ex.video_url} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
                 }
                 {/* Badge grupo */}
                 <div style={{ position:"absolute", top:6, left:6 }}>
@@ -2462,9 +2477,13 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
     principais: Array.isArray(ex.principais) ? ex.principais.join(", ") : (ex.principais||""),
     secundarios: Array.isArray(ex.secundarios) ? ex.secundarios.join(", ") : (ex.secundarios||""),
     _fotoBase64: ex._fotoBase64 || "",
+    _videoPreview: ex.video_url || "",
+    _videoFile: null,
   });
   const [showDelConfirm, setShowDelConfirm] = useState(false);
+  const [videoErr, setVideoErr] = useState("");
   const imgRef = useRef();
+  const videoRef = useRef();
 
   const handleImg = (e) => {
     const file = e.target.files[0];
@@ -2472,6 +2491,23 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
     const reader = new FileReader();
     reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result }));
     reader.readAsDataURL(file);
+  };
+
+  const handleVideo = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setVideoErr("");
+    const tiposOk = ["video/mp4","video/webm","image/gif"];
+    if (!tiposOk.includes(file.type)) {
+      setVideoErr("Formato não suportado. Use MP4, WebM ou GIF.");
+      return;
+    }
+    if (file.size > 20*1024*1024) {
+      setVideoErr("Arquivo muito grande (máx. 20MB). Um vídeo curto (3-6s) já é suficiente.");
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setF(p => ({ ...p, _videoPreview: preview, _videoFile: file, video_url: file.type==="image/gif" ? "" : p.video_url }));
   };
 
   const listEdit   = (field,i,v) => setF(p=>({...p,[field]:p[field].map((x,j)=>j===i?v:x)}));
@@ -2528,6 +2564,38 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
         </button>
         <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
           {f._fotoBase64 ? "📸 Foto personalizada carregada" : "Sem foto → usa imagem padrão do banco de dados"}
+        </p>
+      </div>
+
+      {/* ── DEMONSTRAÇÃO DO EXERCÍCIO (GIF/vídeo em loop) ── */}
+      <div style={{ marginBottom:20 }}>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8, display:"block", marginBottom:8 }}>🎬 DEMONSTRAÇÃO DO EXERCÍCIO (opcional)</label>
+        <p style={{ margin:"0 0 10px", color:T.text3, fontSize:11, lineHeight:1.5 }}>
+          Sobe um vídeo curto (3-6s) ou GIF mostrando o movimento completo — início, execução e volta à posição inicial. Ele toca em loop automático, sem controles, no lugar da foto.
+        </p>
+        {/* Pré-visualização */}
+        <div style={{ borderRadius:16, overflow:"hidden", height:200, background:T.bg2, marginBottom:10, position:"relative" }}>
+          {f._videoPreview
+            ? <video ref={videoRef} src={f._videoPreview} autoPlay loop muted playsInline style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+            : <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span style={{ fontSize:28 }}>🎬</span>
+                <span style={{ color:T.text3, fontSize:12 }}>Sem demonstração cadastrada</span>
+              </div>
+          }
+          {f._videoPreview && (
+            <button onClick={() => setF(p=>({...p,_videoPreview:"",_videoFile:null,video_url:""}))}
+              style={{ position:"absolute", top:10, right:10, background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:8, padding:"4px 10px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              ✕ Remover
+            </button>
+          )}
+        </div>
+        {videoErr && <p style={{ margin:"0 0 10px", color:T.red, fontSize:12 }}>{videoErr}</p>}
+        <input type="file" accept="video/mp4,video/webm,image/gif" id="video-demo-input" style={{ display:"none" }} onChange={handleVideo}/>
+        <button onClick={() => document.getElementById("video-demo-input").click()} style={{ width:"100%", background:T.card2, border:`2px dashed ${T.yellow}88`, borderRadius:14, padding:"14px 0", color:T.yellow, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <Ic n="upload" size={18} color={T.yellow}/> {f._videoPreview ? "Trocar animação" : "Upload de GIF/animação"}
+        </button>
+        <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
+          {f._videoPreview ? "🎬 Quando existe animação, ela substitui a foto na visualização" : "Formatos aceitos: MP4, WebM ou GIF (máx. 20MB)"}
         </p>
       </div>
 
@@ -3259,7 +3327,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
                 <div style={{ background:`linear-gradient(135deg,#0D0D00,#161616)`, borderRadius:20, border:`1px solid ${T.yellow}55`, overflow:"hidden", marginBottom:14, boxShadow:`0 0 30px ${T.yellow}22` }}>
                   <div style={{ display:"flex", alignItems:"stretch" }}>
                     <div style={{ width:96, height:96, flexShrink:0 }}>
-                      {atual.img ? <img src={atual.img} alt={atual.nome} style={{ width:96, height:96, objectFit:"cover", display:"block" }}/> : <ExImg nome={atual.nome} musculo={atual.musculo} imgUrl={atual.img_url} style={{width:96,height:96}}/>}
+                      {atual.img ? <img src={atual.img} alt={atual.nome} style={{ width:96, height:96, objectFit:"cover", display:"block" }}/> : <ExImg nome={atual.nome} musculo={atual.musculo} imgUrl={atual.img_url} videoUrl={atual.video_url} style={{width:96,height:96}}/>}
                     </div>
                     <div style={{ flex:1, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                       <h3 style={{ margin:"0 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{atual.nome}</h3>
@@ -3346,7 +3414,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
             <div style={{ borderRadius:20, overflow:"hidden", marginBottom:16, position:"relative", height:200 }}>
               {exSel.img
                 ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                : <ExImg nome={exSel.nome} musculo={exSel.musculo} imgUrl={exSel.img_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                : <ExImg nome={exSel.nome} musculo={exSel.musculo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
               }
               <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 50%)" }}/>
               <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
@@ -3519,7 +3587,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
                       return (
                         <div key={ex.id} onClick={()=>{ g.items.length>1 ? setSupersetSel({items:g.items, round:1, idx:0}) : setExSel(ex); }} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
                           <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
-                            {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:80,height:80}}/>}
+                            {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:80,height:80}}/>}
                           </div>
                           <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
                             <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
