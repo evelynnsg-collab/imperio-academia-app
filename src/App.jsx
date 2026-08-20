@@ -2497,13 +2497,13 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
     const file = e.target.files[0];
     if (!file) return;
     setVideoErr("");
-    const tiposOk = ["video/mp4","video/webm","image/gif"];
+    const tiposOk = ["video/mp4","video/webm","video/quicktime","image/gif"];
     if (!tiposOk.includes(file.type)) {
-      setVideoErr("Formato não suportado. Use MP4, WebM ou GIF.");
+      setVideoErr("Formato não suportado. Use MP4, WebM, MOV ou GIF.");
       return;
     }
-    if (file.size > 20*1024*1024) {
-      setVideoErr("Arquivo muito grande (máx. 20MB). Um vídeo curto (3-6s) já é suficiente.");
+    if (file.size > 60*1024*1024) {
+      setVideoErr("Arquivo muito grande (máx. 60MB). Um vídeo curto (3-6s) já é suficiente.");
       return;
     }
     const preview = URL.createObjectURL(file);
@@ -2590,12 +2590,12 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
           )}
         </div>
         {videoErr && <p style={{ margin:"0 0 10px", color:T.red, fontSize:12 }}>{videoErr}</p>}
-        <input type="file" accept="video/mp4,video/webm,image/gif" id="video-demo-input" style={{ display:"none" }} onChange={handleVideo}/>
+        <input type="file" accept="video/mp4,video/webm,video/quicktime,image/gif" id="video-demo-input" style={{ display:"none" }} onChange={handleVideo}/>
         <button onClick={() => document.getElementById("video-demo-input").click()} style={{ width:"100%", background:T.card2, border:`2px dashed ${T.yellow}88`, borderRadius:14, padding:"14px 0", color:T.yellow, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
           <Ic n="upload" size={18} color={T.yellow}/> {f._videoPreview ? "Trocar animação" : "Upload de GIF/animação"}
         </button>
         <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
-          {f._videoPreview ? "🎬 Quando existe animação, ela substitui a foto na visualização" : "Formatos aceitos: MP4, WebM ou GIF (máx. 20MB)"}
+          {f._videoPreview ? "🎬 Quando existe animação, ela substitui a foto na visualização" : "Formatos aceitos: MP4, WebM, MOV ou GIF (máx. 60MB)"}
         </p>
       </div>
 
