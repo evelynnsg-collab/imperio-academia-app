@@ -1240,6 +1240,7 @@ const agruparExercicios = (list) => {
 
 // ─── COPIAR TREINO PARA OUTRO ALUNO ───────────────────────────────────────────
 const CopiarTreinoModal = ({ alunoOrigem, alunos, onUpdateOutroAluno, onClose }) => {
+  const T = useContext(ThemeContext);
   const [busca, setBusca] = useState("");
   const [destino, setDestino] = useState(null);
   const fichasOrigem = Object.keys(alunoOrigem.treinos || {});
@@ -1397,6 +1398,7 @@ const CopiarTreinoModal = ({ alunoOrigem, alunos, onUpdateOutroAluno, onClose })
 
 // ─── ADMIN: ALUNO DETALHE ─────────────────────────────────────────────────────
 const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, alunos=[], onUpdateOutroAluno }) => {
+  const T = useContext(ThemeContext);
   const [dados,setDados]=useState({...aluno});
   const [treinos,setTreinos]=useState(aluno.treinos||{});
   const [cardapio,setCardapio]=useState(aluno.cardapio||{});
@@ -1848,6 +1850,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
 
 // ─── EXERCISE FORM ────────────────────────────────────────────────────────────
 const ExForm = ({ ex, onSave, onCancel }) => {
+  const T = useContext(ThemeContext);
   const [f,setF]=useState({...ex});
   const imgRef=useRef();
   const handleImg=(e)=>{
@@ -1898,6 +1901,7 @@ const ExForm = ({ ex, onSave, onCancel }) => {
 
 // ─── REFEICAO FORM ────────────────────────────────────────────────────────────
 const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
+  const T = useContext(ThemeContext);
   const [local,setLocal]=useState({...data,alimentos:[...(data.alimentos||[])]});
   const [newAlim,setNewAlim]=useState({nome:"",qtd:"",kcal:"",obs:""});
   const imgRef=useRef();
@@ -1966,6 +1970,7 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
 
 // ─── EVOLUÇÃO ADMIN (Firebase Storage) ────────────────────────────────────────
 const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
+  const T = useContext(ThemeContext);
   const [fotos, setFotos] = useState([]);
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2609,9 +2614,11 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   const filtrados = alunos.filter(a => !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca));
 
   if (alunoSel) return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <AlunoDetalhe aluno={alunoSel} soCardapio={true} onBack={()=>setAlunoSel(null)}
       onSave={async(u)=>{ await onUpdateAluno({...u,id:alunoSel.id}); setAlunoSel({...u,id:alunoSel.id}); }}
       onDelete={()=>{}}/>
+    </ThemeContext.Provider>
   );
 
   return (
@@ -2674,6 +2681,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [backupAuthErr,setBackupAuthErr]=useState("");
 
   if(alunoSel) return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <AlunoDetalhe
       aluno={alunoSel}
       alunos={alunos}
@@ -2682,6 +2690,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       onSave={async(updated)=>{ await onUpdateAluno({...updated,id:alunoSel.id}); setAlunoSel({...updated,id:alunoSel.id}); }}
       onDelete={async(id)=>{ await onDeleteAluno(id); setAlunoSel(null); }}
     />
+    </ThemeContext.Provider>
   );
 
   const filtrados=alunos.filter(a=>
