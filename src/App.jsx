@@ -1597,7 +1597,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
       )}
 
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"16px 16px 0", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:50 }}>
+      <div style={{ background: T===T_LIGHT ? `linear-gradient(135deg,#FFFFFF,#FFF8E1)` : `linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"16px 16px 0", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}55`, position:"sticky", top:0, zIndex:50 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}>
             <Ic n="back" size={18} color={T.text3}/> Alunos
