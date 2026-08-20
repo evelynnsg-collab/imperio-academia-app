@@ -594,6 +594,18 @@ const T = {
   gold:"linear-gradient(135deg,#F5C518,#FFD700)",
 };
 
+// Tema claro — usado só no painel/dashboard do admin e da nutricionista
+const T_LIGHT = {
+  bg:"#FFFFFF",bg2:"#F7F7F7",card:"#FFFFFF",card2:"#F2F2F2",
+  border:"#E2E2E2",border2:"#D4D4D4",
+  yellow:"#B8860B",yellowDim:"#F5C51822",
+  red:"#D42F2F",redDim:"#D42F2F14",
+  green:"#16A34A",greenDim:"#16A34A14",
+  blue:"#2563EB",purple:"#9B59B6",
+  text:"#141414",text2:"#3A3A3A",text3:"#6B6B6B",
+  gold:"linear-gradient(135deg,#F5C518,#FFD700)",
+};
+
 // ─── LOGO IMPÉRIO ─────────────────────────────────────────────────────────────
 // LOGO_URL = versão com fundo transparente (ícone / marca d'água)
 // LOGO_BG_URL = versão com fundo preto (imagem de fundo da tela de login)
@@ -2551,6 +2563,7 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 
 // ─── NUTRI PANEL ──────────────────────────────────────────────────────────────
 const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
+  const T = T_LIGHT; // painel da nutri: fundo branco, letra um pouco maior
   const [alunoSel, setAlunoSel] = useState(null);
   const [busca, setBusca] = useState("");
 
@@ -2563,7 +2576,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
       <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}33`, position:"sticky", top:0, zIndex:30 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -2606,6 +2619,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout, role="admin" }) => {
+  const T = T_LIGHT; // painel do admin: fundo branco, letra um pouco maior
   const [subTab,setSubTab]=useState("cadastros");  const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -2712,7 +2726,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const ADMIN_TABS = role==="dono" ? ADMIN_TABS_ALL.filter(t=>t.id!=="config") : ADMIN_TABS_ALL;
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
       {showBackupAuth && (
         <Modal title="🔒 Confirmar exportação" onClose={()=>{setShowBackupAuth(false);setBackupSenha("");setBackupAuthErr("");}}>
