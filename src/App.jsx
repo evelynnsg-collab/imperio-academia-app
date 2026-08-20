@@ -2190,12 +2190,22 @@ const BibliotecaAdmin = () => {
     })();
   }, []);
 
-  // Salva exercício no Firestore
+  // Salva exercício no Firestore (foto vai pro Storage, não fica no documento)
   const salvarExercicio = async (ex) => {
     setLoading(true); setMsg("");
     try {
       const id = ex.id || "custom_" + Date.now();
-      const data = { ...ex, id };
+      let fotoFinal = ex._fotoBase64 || "";
+      // Se for uma foto nova (recém-selecionada, ainda em base64), sobe pro
+      // Storage e troca por um link — evita o limite de 1MB do Firestore,
+      // então aceita foto de qualquer tamanho.
+      if (fotoFinal.startsWith("data:")) {
+        const blob = await (await fetch(fotoFinal)).blob();
+        const imgRef = storageRef(storage, `biblioteca_custom/${id}.jpg`);
+        await uploadBytes(imgRef, blob);
+        fotoFinal = await getDownloadURL(imgRef);
+      }
+      const data = { ...ex, id, _fotoBase64: fotoFinal };
       await setDoc(doc(db, "biblioteca_custom", id), data);
       if(customExs.find(e => e.id === id)) {
         setCustomExs(p => p.map(e => e.id === id ? data : e));
@@ -2578,7 +2588,7 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
-      <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}33`, position:"sticky", top:0, zIndex:30 }}>
+      <div style={{ background:`linear-gradient(135deg,#FFFFFF,#EAFBF1)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}55`, position:"sticky", top:0, zIndex:30 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <div>
             <p style={{ margin:0, fontSize:11, color:T.green, fontWeight:700, letterSpacing:1 }}>PAINEL NUTRICIONISTA</p>
@@ -2762,7 +2772,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       )}
 
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"20px 16px 0", paddingTop:"calc(20px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:40 }}>
+      <div style={{ background:`linear-gradient(135deg,#FFFFFF,#FFF8E1)`, padding:"20px 16px 0", paddingTop:"calc(20px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}55`, position:"sticky", top:0, zIndex:40 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div><p style={{ margin:0, color:T.yellow, fontSize:11, fontWeight:700, letterSpacing:1 }}>{role==="dono"?"PAINEL DA ACADEMIA":"PAINEL ADMIN"}</p><h1 style={{ margin:"2px 0 0", fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</h1></div>
           <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"8px 16px", color:T.red, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
