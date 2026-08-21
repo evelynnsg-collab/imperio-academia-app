@@ -1870,12 +1870,30 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
 const ExForm = ({ ex, onSave, onCancel }) => {
   const T = useContext(ThemeContext);
   const [f,setF]=useState({...ex});
+  const [uploadPct, setUploadPct] = useState(null);
+  const [uploadErr, setUploadErr] = useState("");
   const imgRef=useRef();
-  const handleImg=(e)=>{
-    const file=e.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>setF(p=>({...p,img:ev.target.result, img_url:ev.target.result}));
-    reader.readAsDataURL(file);
+  const handleImg = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadErr("");
+    // Preview local imediato, enquanto sobe de verdade pro Storage
+    const localPreview = URL.createObjectURL(file);
+    setF(p => ({ ...p, img: localPreview }));
+    const ext = file.type === "image/gif" ? "gif" : file.type === "image/png" ? "png" : file.type === "video/mp4" ? "mp4" : file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "jpg";
+    const path = `treino_exercicios/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const fileRef = storageRef(storage, path);
+    setUploadPct(0);
+    const task = uploadBytesResumable(fileRef, file);
+    task.on("state_changed",
+      snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      err => { setUploadErr("Não foi possível subir o arquivo. Tenta de novo."); setUploadPct(null); },
+      async () => {
+        const url = await getDownloadURL(fileRef);
+        setF(p => ({ ...p, img: url, img_url: url }));
+        setUploadPct(null);
+      }
+    );
   };
   // foto atual: img (upload manual) ou img_url (da biblioteca)
   const fotoAtual = f.img || f.img_url || getExImg(f.nome);
@@ -1891,9 +1909,9 @@ const ExForm = ({ ex, onSave, onCancel }) => {
       <Textarea label="OBSERVAÇÕES" value={f.obs||""} onChange={v=>setF(p=>({...p,obs:v}))} placeholder="Cuidados, forma de execução..." rows={2}/>
       <Inp label="LINK DO VÍDEO (YouTube/Vimeo)" value={f.video||""} onChange={v=>setF(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
 
-      {/* FOTO */}
+      {/* FOTO / GIF */}
       <div style={{ marginBottom:12 }}>
-        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:8 }}>FOTO DO EXERCÍCIO</label>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:8 }}>FOTO OU GIF DO EXERCÍCIO</label>
         {fotoAtual && (
           <div style={{ position:"relative", marginBottom:8 }}>
             <img src={fotoAtual} alt={f.nome} style={{ width:"100%", borderRadius:10, maxHeight:160, objectFit:"cover", display:"block" }}/>
@@ -1901,17 +1919,26 @@ const ExForm = ({ ex, onSave, onCancel }) => {
               style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,.7)", border:"none", borderRadius:50, width:28, height:28, color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
           </div>
         )}
-        <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
+        {uploadPct!==null && (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ height:8, background:T.card2, borderRadius:50, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${uploadPct}%`, background:T.gold, borderRadius:50, transition:"width 0.2s" }}/>
+            </div>
+            <p style={{ margin:"4px 0 0", fontSize:11, color:T.text3, textAlign:"center" }}>Enviando... {uploadPct}%</p>
+          </div>
+        )}
+        {uploadErr && <p style={{ margin:"0 0 8px", color:T.red, fontSize:12 }}>{uploadErr}</p>}
+        <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
         <button onClick={()=>imgRef.current.click()}
           style={{ background:T.card2, border:`2px dashed ${T.yellow}66`, borderRadius:12, padding:"12px 16px", color:T.yellow, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
           <Ic n="upload" size={16} color={T.yellow}/>
-          {fotoAtual ? "📷 Trocar foto da galeria" : "📷 Fazer upload da foto"}
+          {fotoAtual ? "📷 Trocar foto/GIF" : "📷 Fazer upload da foto ou GIF"}
         </button>
       </div>
 
       <div style={{ display:"flex", gap:10, marginTop:16 }}>
         <Btn onClick={onCancel} outline style={{ flex:1 }}>Cancelar</Btn>
-        <Btn onClick={()=>onSave(f)} style={{ flex:2, color:T.bg }}>💾 Salvar exercício</Btn>
+        <Btn onClick={()=>onSave(f)} disabled={uploadPct!==null} style={{ flex:2, color:T.bg, opacity:uploadPct!==null?0.6:1 }}>{uploadPct!==null ? `Enviando... ${uploadPct}%` : "💾 Salvar exercício"}</Btn>
       </div>
     </div>
   );
