@@ -1014,7 +1014,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
             <div style={{ display:"flex", gap:10, marginTop:16 }}>
               <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
-              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, video_url:exSel.video_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url||"", video_url:exSel.video_url||"", ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
                 <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
               </Btn>
             </div>
@@ -1432,15 +1432,23 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const [redefinindo,setRedefinindo]=useState(false);
   const [statusRedefinir,setStatusRedefinir]=useState(null); // { ok, msg }
 
-  const salvarTudo = () => {
+  const [erroSalvar, setErroSalvar] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const salvarTudo = async () => {
     const cpfNovo = String(dados.cpf||"").replace(/\D/g,"");
     const cpfAtual = aluno.id;
     if (!soCardapio && cpfNovo && cpfNovo !== cpfAtual) {
       setConfirmMigracao({ cpfAntigo:cpfAtual, cpfNovo });
       return;
     }
-    onSave({ ...dados, treinos, cardapio });
-    setSaved(true); setTimeout(()=>setSaved(false),2000);
+    setSalvando(true); setErroSalvar("");
+    try {
+      await onSave({ ...dados, treinos, cardapio });
+      setSaved(true); setTimeout(()=>setSaved(false),2000);
+    } catch(e) {
+      setErroSalvar("❌ Não foi possível salvar — verifique sua conexão e tenta de novo. (" + (e.message||"erro desconhecido") + ")");
+    }
+    setSalvando(false);
   };
 
   const confirmarMigracaoCpf = async () => {
@@ -1615,11 +1623,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
             <button onClick={()=>setShowConfirm(true)} style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:8, padding:"7px 12px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
               <Ic n="trash" size={12} color={T.red}/>Excluir
             </button>
-            <button onClick={salvarTudo} style={{ background:saved?T.greenDim:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:saved?T.green:T.bg, fontSize:13, fontWeight:900, cursor:"pointer", transition:"all .2s" }}>
-              {saved ? "✓ Salvo!" : "💾 Salvar"}
+            <button onClick={salvarTudo} disabled={salvando} style={{ background:saved?T.greenDim:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:saved?T.green:T.bg, fontSize:13, fontWeight:900, cursor:salvando?"default":"pointer", transition:"all .2s", opacity:salvando?0.7:1 }}>
+              {salvando ? "Salvando..." : saved ? "✓ Salvo!" : "💾 Salvar"}
             </button>
           </div>
         </div>
+        {erroSalvar && <p style={{ margin:"0 0 12px", color:T.red, fontSize:12, fontWeight:700, lineHeight:1.5 }}>{erroSalvar}</p>}
 
         {/* Info aluno */}
         <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
@@ -3223,11 +3232,40 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const fichas=Object.keys(aluno.treinos||{});
   const exList=aluno.treinos?.[treinoAtivo]||[];
   // Verifica se o TREINO INTEIRO (todos os exercícios normais + todas as rodadas de bi-set/tri-set) já foi concluído
+  // Data de hoje (usada pra saber se o progresso salvo ainda vale, ou se é
+  // um novo dia e o treino deve começar zerado de novo)
+  const hojeStr = () => new Date().toISOString().slice(0,10);
+
+  // Carrega o progresso salvo do Firestore ao trocar de ficha (Treino A/B/C)
+  // ou quando os dados do aluno chegam/atualizam
+  useEffect(() => {
+    const salvo = aluno.progresso?.[treinoAtivo];
+    if (salvo && salvo.data === hojeStr()) {
+      setDone(salvo.done || []);
+      setSeriesDone(salvo.seriesDone || {});
+      if (salvo.comemorado) setComemorados(p => p.includes(treinoAtivo) ? p : [...p, treinoAtivo]);
+    } else {
+      setDone([]);
+      setSeriesDone({});
+    }
+  }, [treinoAtivo, aluno.progresso]);
+
+  // Salva o progresso (exercícios concluídos, séries feitas) de verdade no
+  // Firestore, pra não sumir quando o app recarrega ou o aluno sai e entra
+  const salvarProgresso = (novoDone, novoSeriesDone, jaComemorou) => {
+    const progresso = {
+      ...(aluno.progresso || {}),
+      [treinoAtivo]: { done: novoDone, seriesDone: novoSeriesDone, comemorado: !!jaComemorou, data: hojeStr() },
+    };
+    onUpdateAluno({ ...aluno, progresso });
+  };
+
   const verificarTreinoCompleto = (doneAtualizado) => {
     if (exList.length===0) return;
     const tudoFeito = exList.every(ex => doneAtualizado.includes(ex.id));
     if (tudoFeito && !comemorados.includes(treinoAtivo)) {
       setComemorados(p => [...p, treinoAtivo]);
+      salvarProgresso(doneAtualizado, seriesDone, true);
       setTimeout(() => setCelebrando(true), 500); // pequeno delay pra fechar a tela do exercício antes
     }
   };
@@ -3325,6 +3363,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
             setDone(novoDone);
             setSupersetSel(null);
             verificarTreinoCompleto(novoDone);
+            if (!exList.every(ex => novoDone.includes(ex.id))) salvarProgresso(novoDone, seriesDone, comemorados.includes(treinoAtivo));
           }
         };
 
@@ -3424,22 +3463,28 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         // Ao completar todas as séries → marca como concluído automaticamente
         const marcarSerie = () => {
           const novas = (seriesDone[exSel.id] || 0) + 1;
-          setSeriesDone(p => ({ ...p, [exSel.id]: novas }));
+          const novoSeriesDone = { ...seriesDone, [exSel.id]: novas };
+          setSeriesDone(novoSeriesDone);
           if (novas >= totalSeries) {
             const novoDone = done.includes(exSel.id) ? done : [...done, exSel.id];
             setDone(novoDone);
             setTimerSeg(null);
             setTimeout(() => setExSel(null), 900); // volta após animação
             verificarTreinoCompleto(novoDone);
+            if (!exList.every(ex => novoDone.includes(ex.id))) salvarProgresso(novoDone, novoSeriesDone, comemorados.includes(treinoAtivo));
           } else {
             setTimerSeg(parseDescanso(exSel.descanso)); // abre timer automático
+            salvarProgresso(done, novoSeriesDone, comemorados.includes(treinoAtivo));
           }
         };
 
         const resetSeries = () => {
-          setSeriesDone(p => ({ ...p, [exSel.id]: 0 }));
-          setDone(p => p.filter(x => x !== exSel.id));
+          const novoSeriesDone = { ...seriesDone, [exSel.id]: 0 };
+          const novoDone = done.filter(x => x !== exSel.id);
+          setSeriesDone(novoSeriesDone);
+          setDone(novoDone);
           setTimerSeg(null);
+          salvarProgresso(novoDone, novoSeriesDone, comemorados.includes(treinoAtivo));
         };
 
         return (
