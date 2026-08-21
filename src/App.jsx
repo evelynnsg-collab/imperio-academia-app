@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 import html2canvas from "html2canvas";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
@@ -15,12 +15,15 @@ const firebaseConfig = {
   appId: "1:583980259345:web:9425a8afb1325a66b779b0"
 };
 
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebase/storage";
+import { getStorage, ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, listAll } from "firebase/storage";
 
 const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const db     = getFirestore(fbApp);
 const storage = getStorage(fbApp);
+// Vídeos/GIFs podem ser grandes e o upload lento numa conexão de celular —
+// aumenta o tempo que o Firebase tenta antes de desistir (padrão é ~2 min).
+storage.maxUploadRetryTime = 10 * 60 * 1000; // 10 minutos
 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 // Salva aluno no Firestore
@@ -594,6 +597,23 @@ const T = {
   gold:"linear-gradient(135deg,#F5C518,#FFD700)",
 };
 
+// Tema claro — usado só no painel/dashboard do admin e da nutricionista
+const T_LIGHT = {
+  bg:"#FFFFFF",bg2:"#F7F7F7",card:"#FFFFFF",card2:"#F2F2F2",
+  border:"#E2E2E2",border2:"#D4D4D4",
+  yellow:"#B8860B",yellowDim:"#F5C51822",
+  red:"#D42F2F",redDim:"#D42F2F14",
+  green:"#16A34A",greenDim:"#16A34A14",
+  blue:"#2563EB",purple:"#9B59B6",
+  text:"#141414",text2:"#3A3A3A",text3:"#6B6B6B",
+  gold:"linear-gradient(135deg,#F5C518,#FFD700)",
+};
+
+// Contexto de tema — os componentes compartilhados leem daqui. Por padrão
+// (fora do admin/nutri) vale o tema escuro; dentro do painel admin/nutri,
+// um Provider troca pra T_LIGHT.
+const ThemeContext = createContext(T);
+
 // ─── LOGO IMPÉRIO ─────────────────────────────────────────────────────────────
 // LOGO_URL = versão com fundo transparente (ícone / marca d'água)
 // LOGO_BG_URL = versão com fundo preto (imagem de fundo da tela de login)
@@ -664,7 +684,9 @@ const Ic = ({ n, size=20, color="currentColor", style={} }) => {
 };
 
 // ─── SVG EXERCISE ILLUSTRATIONS ───────────────────────────────────────────────
-const ExIllust = ({ name, color=T.yellow, size="thumb" }) => {
+const ExIllust = ({ name, color, size="thumb" }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
   const w=size==="hero"?400:88; const h=size==="hero"?200:88; const s=size==="hero"?1.55:0.34;
   const ills = {
     "Leg Press":<g><rect x="20" y="120" width="220" height="12" rx="4" fill="#444"/><rect x="20" y="80" width="12" height="60" rx="4" fill="#555"/><rect x="228" y="40" width="12" height="100" rx="4" fill="#555"/><rect x="50" y="90" width="70" height="14" rx="6" fill="#777"/><rect x="165" y="50" width="65" height="50" rx="6" fill="#666"/><line x1="32" y1="50" x2="180" y2="50" stroke="#555" strokeWidth="6"/><rect x="230" y="40" width="20" height="8" rx="2" fill={color} opacity="0.9"/><rect x="230" y="52" width="20" height="8" rx="2" fill={color} opacity="0.7"/><circle cx="75" cy="68" r="12" fill="#DDD"/><line x1="75" y1="80" x2="75" y2="102" stroke="#DDD" strokeWidth="7" strokeLinecap="round"/><line x1="75" y1="102" x2="165" y2="65" stroke="#DDD" strokeWidth="6" strokeLinecap="round"/></g>,
@@ -685,10 +707,13 @@ const ExIllust = ({ name, color=T.yellow, size="thumb" }) => {
 };
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
-const Card = ({ children, style={}, onClick }) => (
-  <div onClick={onClick} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, ...style, cursor:onClick?"pointer":"default" }}>{children}</div>
-);
-const Btn = ({ children, onClick, color=T.yellow, style={}, small=false, outline=false, danger=false }) => {
+const Card = ({ children, style={}, onClick }) => {
+  const T = useContext(ThemeContext);
+  return <div onClick={onClick} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, ...style, cursor:onClick?"pointer":"default" }}>{children}</div>;
+};
+const Btn = ({ children, onClick, color, style={}, small=false, outline=false, danger=false }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
   const bg = danger ? T.red : outline ? "transparent" : color;
   const textColor = outline ? (danger ? T.red : color) : (color===T.yellow ? T.bg : T.text);
   const border = outline || danger ? `1px solid ${danger?T.red:color}` : "none";
@@ -698,33 +723,45 @@ const Btn = ({ children, onClick, color=T.yellow, style={}, small=false, outline
     </button>
   );
 };
-const YBadge = ({ text, color=T.yellow }) => (
-  <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:700, letterSpacing:0.4, flexShrink:0 }}>{text}</span>
-);
-const Sec = ({ title, action, onAction, children, style={} }) => (
-  <div style={{ marginBottom:20, ...style }}>
-    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-      <span style={{ fontSize:15, fontWeight:800, color:T.text, letterSpacing:-0.3 }}>{title}</span>
-      {action && <span onClick={onAction} style={{ fontSize:12, color:T.yellow, cursor:"pointer", fontWeight:700 }}>{action}</span>}
+const YBadge = ({ text, color }) => {
+  const T = useContext(ThemeContext);
+  color = color || T.yellow;
+  return <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:20, padding:"2px 10px", fontSize:11, fontWeight:700, letterSpacing:0.4, flexShrink:0 }}>{text}</span>;
+};
+const Sec = ({ title, action, onAction, children, style={} }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:20, ...style }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <span style={{ fontSize:15, fontWeight:800, color:T.text, letterSpacing:-0.3 }}>{title}</span>
+        {action && <span onClick={onAction} style={{ fontSize:12, color:T.yellow, cursor:"pointer", fontWeight:700 }}>{action}</span>}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
-const Inp = ({ label, value, onChange, placeholder="", type="text", style={} }) => (
-  <div style={{ marginBottom:12 }}>
-    {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
-    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-      style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", ...style }}/>
-  </div>
-);
-const Textarea = ({ label, value, onChange, placeholder="", rows=3 }) => (
-  <div style={{ marginBottom:12 }}>
-    {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
-    <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"inherit" }}/>
-  </div>
-);
+  );
+};
+const Inp = ({ label, value, onChange, placeholder="", type="text", style={} }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:12 }}>
+      {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", ...style }}/>
+    </div>
+  );
+};
+const Textarea = ({ label, value, onChange, placeholder="", rows=3 }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ marginBottom:12 }}>
+      {label && <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>{label}</label>}
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+        style={{ width:"100%", background:T.card2, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 13px", color:T.text, fontSize:14, outline:"none", boxSizing:"border-box", resize:"vertical", fontFamily:"inherit" }}/>
+    </div>
+  );
+};
 const Modal = ({ title, onClose, children }) => {
+  const T = useContext(ThemeContext);
   useEffect(() => {
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -742,22 +779,32 @@ const Modal = ({ title, onClose, children }) => {
     </div>
   );
 };
-const Confirm = ({ msg, onYes, onNo }) => (
-  <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-    <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
-      <p style={{ color:T.text, fontSize:15, fontWeight:600, marginBottom:20, textAlign:"center" }}>{msg}</p>
-      <div style={{ display:"flex", gap:10 }}>
-        <Btn onClick={onNo} outline style={{ flex:1 }}>Cancelar</Btn>
-        <Btn onClick={onYes} danger style={{ flex:1 }}>Excluir</Btn>
+const Confirm = ({ msg, onYes, onNo }) => {
+  const T = useContext(ThemeContext);
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
+        <p style={{ color:T.text, fontSize:15, fontWeight:600, marginBottom:20, textAlign:"center" }}>{msg}</p>
+        <div style={{ display:"flex", gap:10 }}>
+          <Btn onClick={onNo} outline style={{ flex:1 }}>Cancelar</Btn>
+          <Btn onClick={onYes} danger style={{ flex:1 }}>Excluir</Btn>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 
 // ─── COMPONENTE DE IMAGEM DO EXERCÍCIO (real + fallback SVG) ─────────────────
-const ExImg = ({ nome, musculo, cor, imgUrl, style={} }) => {
+const ExImg = ({ nome, musculo, cor, imgUrl, videoUrl, style={} }) => {
+  const T = useContext(ThemeContext);
   const [imgOk, setImgOk] = useState(true);
+  if (videoUrl) {
+    return (
+      <video src={videoUrl} autoPlay loop muted playsInline preload="auto"
+        style={{ width:"100%", height:"100%", objectFit:"contain", display:"block", background:T.bg2, ...style }}/>
+    );
+  }
   const src = imgUrl || getExImg(nome);
   if (src && imgOk) {
     return (
@@ -906,6 +953,7 @@ const BIBLIOTECA = BIBLIOTECA_FULL;
 
 // ─── BIBLIOTECA MODAL (para admin montar treino) ───────────────────────────────
 const BibliotecaModal = ({ onAdd, onClose }) => {
+  const T = useContext(ThemeContext);
   const [grupoFiltro, setGrupoFiltro] = useState("Todos");
   const [busca, setBusca] = useState("");
   const [exSel, setExSel] = useState(null);
@@ -952,7 +1000,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           </div>
           <div style={{ padding:"16px 20px 40px" }}>
             <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:16, padding:12, background:T.bg2, borderRadius:12 }}>
-              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:60,height:60}}/></div>
+              <div style={{width:60,height:60,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:60,height:60}}/></div>
               <div>
                 <p style={{ margin:0, fontSize:15, fontWeight:800, color:T.text }}>{exSel.nome}</p>
                 <YBadge text={exSel.grupo} color={GRUPOS_CORES[exSel.grupo]||T.yellow}/>
@@ -966,7 +1014,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
             <div style={{ display:"flex", gap:10, marginTop:16 }}>
               <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
-              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, video_url:exSel.video_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
                 <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
               </Btn>
             </div>
@@ -988,7 +1036,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
           <div style={{ padding:"16px 20px 40px" }}>
             {/* Anatomy illustration */}
             <div style={{ display:"flex", gap:14, marginBottom:16 }}>
-              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} style={{width:80,height:80}}/></div>
+              <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0}}><ExImg nome={exSel.nome} musculo={exSel.grupo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:80,height:80}}/></div>
               <div style={{ flex:1 }}>
                 <YBadge text={exSel.grupo} color={cor}/>
                 <h3 style={{ margin:"6px 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{exSel.nome}</h3>
@@ -1065,7 +1113,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
               return (
                 <div key={ex.id} onClick={()=>setExSel(ex)} style={{ background:T.card2, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}`, cursor:"pointer" }}>
                   <div style={{ position:"relative" }}>
-                    <div style={{aspectRatio:"1",overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
+                    <div style={{aspectRatio:"1",overflow:"hidden",background:T.bg2}}><ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:"100%",height:"100%",objectFit:"contain"}}/></div>
                     <div style={{ position:"absolute", top:6, left:6 }}><YBadge text={ex.grupo} color={cor}/></div>
                   </div>
                   <div style={{ padding:"10px 10px 12px" }}>
@@ -1201,6 +1249,7 @@ const agruparExercicios = (list) => {
 
 // ─── COPIAR TREINO PARA OUTRO ALUNO ───────────────────────────────────────────
 const CopiarTreinoModal = ({ alunoOrigem, alunos, onUpdateOutroAluno, onClose }) => {
+  const T = useContext(ThemeContext);
   const [busca, setBusca] = useState("");
   const [destino, setDestino] = useState(null);
   const fichasOrigem = Object.keys(alunoOrigem.treinos || {});
@@ -1358,6 +1407,7 @@ const CopiarTreinoModal = ({ alunoOrigem, alunos, onUpdateOutroAluno, onClose })
 
 // ─── ADMIN: ALUNO DETALHE ─────────────────────────────────────────────────────
 const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, alunos=[], onUpdateOutroAluno }) => {
+  const T = useContext(ThemeContext);
   const [dados,setDados]=useState({...aluno});
   const [treinos,setTreinos]=useState(aluno.treinos||{});
   const [cardapio,setCardapio]=useState(aluno.cardapio||{});
@@ -1556,7 +1606,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
       )}
 
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"16px 16px 0", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:50 }}>
+      <div style={{ background: T===T_LIGHT ? `linear-gradient(135deg,#FFFFFF,#FFF8E1)` : `linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"16px 16px 0", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}55`, position:"sticky", top:0, zIndex:50 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:6, color:T.text3, fontSize:14 }}>
             <Ic n="back" size={18} color={T.text3}/> Alunos
@@ -1716,7 +1766,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
                               <div style={{ width:72, height:72, flexShrink:0, overflow:"hidden" }}>
                                 {ex.img
                                   ? <img src={ex.img} alt={ex.nome} style={{ width:72, height:72, objectFit:"cover", display:"block" }}/>
-                                  : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} style={{width:72,height:72}}/>
+                                  : <ExImg nome={ex.nome} musculo={ex.musculo||ex.grupo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:72,height:72}}/>
                                 }
                               </div>
                               <div style={{ flex:1, padding:"10px 12px" }}>
@@ -1809,6 +1859,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
 
 // ─── EXERCISE FORM ────────────────────────────────────────────────────────────
 const ExForm = ({ ex, onSave, onCancel }) => {
+  const T = useContext(ThemeContext);
   const [f,setF]=useState({...ex});
   const imgRef=useRef();
   const handleImg=(e)=>{
@@ -1859,6 +1910,7 @@ const ExForm = ({ ex, onSave, onCancel }) => {
 
 // ─── REFEICAO FORM ────────────────────────────────────────────────────────────
 const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
+  const T = useContext(ThemeContext);
   const [local,setLocal]=useState({...data,alimentos:[...(data.alimentos||[])]});
   const [newAlim,setNewAlim]=useState({nome:"",qtd:"",kcal:"",obs:""});
   const imgRef=useRef();
@@ -1927,6 +1979,7 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
 
 // ─── EVOLUÇÃO ADMIN (Firebase Storage) ────────────────────────────────────────
 const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
+  const T = useContext(ThemeContext);
   const [fotos, setFotos] = useState([]);
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2154,6 +2207,7 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
 
 // ─── BIBLIOTECA ADMIN ─────────────────────────────────────────────────────────
 const BibliotecaAdmin = () => {
+  const T = useContext(ThemeContext);
   // customExs: exercícios adicionados/editados pelo admin (salvos no Firestore)
   const [customExs, setCustomExs] = useState([]);
   const [fotoCustom, setFotoCustom] = useState({}); // { [exId]: base64 } fotos sobrescritas
@@ -2162,6 +2216,7 @@ const BibliotecaAdmin = () => {
   const [exSel, setExSel] = useState(null);  // exercício em detalhe/edição
   const [modo, setModo] = useState(null);     // "ver" | "editar" | "novo"
   const [loading, setLoading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(null); // progresso do upload de video (0-100)
   const [msg, setMsg] = useState("");
 
   // Carrega customizações do Firestore ao montar
@@ -2178,12 +2233,41 @@ const BibliotecaAdmin = () => {
     })();
   }, []);
 
-  // Salva exercício no Firestore
+  // Salva exercício no Firestore (foto vai pro Storage, não fica no documento)
   const salvarExercicio = async (ex) => {
-    setLoading(true); setMsg("");
+    setLoading(true); setMsg(""); setUploadPct(null);
     try {
       const id = ex.id || "custom_" + Date.now();
-      const data = { ...ex, id };
+      let fotoFinal = ex._fotoBase64 || "";
+      // Se for uma foto nova (recém-selecionada, ainda em base64), sobe pro
+      // Storage e troca por um link — evita o limite de 1MB do Firestore,
+      // então aceita foto de qualquer tamanho.
+      if (fotoFinal.startsWith("data:")) {
+        const blob = await (await fetch(fotoFinal)).blob();
+        const imgRef = storageRef(storage, `biblioteca_custom/${id}.jpg`);
+        await uploadBytes(imgRef, blob);
+        fotoFinal = await getDownloadURL(imgRef);
+      }
+      let videoFinal = ex.video_url || "";
+      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage —
+      // com barra de progresso, porque vídeo pode demorar bastante numa
+      // conexão de celular mais lenta.
+      if (ex._videoFile) {
+        const ext = ex._videoFile.type === "image/gif" ? "gif" : (ex._videoFile.type === "video/webm" ? "webm" : (ex._videoFile.type === "video/quicktime" ? "mov" : "mp4"));
+        const vidRef = storageRef(storage, `biblioteca_custom/${id}_demo.${ext}`);
+        setUploadPct(0);
+        videoFinal = await new Promise((resolve, reject) => {
+          const task = uploadBytesResumable(vidRef, ex._videoFile);
+          task.on("state_changed",
+            snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+            err => reject(err),
+            async () => resolve(await getDownloadURL(vidRef))
+          );
+        });
+        setUploadPct(null);
+      }
+      const { _videoFile, _videoPreview, ...exSemAuxiliares } = ex;
+      const data = { ...exSemAuxiliares, id, _fotoBase64: fotoFinal, video_url: videoFinal };
       await setDoc(doc(db, "biblioteca_custom", id), data);
       if(customExs.find(e => e.id === id)) {
         setCustomExs(p => p.map(e => e.id === id ? data : e));
@@ -2195,6 +2279,7 @@ const BibliotecaAdmin = () => {
       setTimeout(() => { setMsg(""); setModo(null); setExSel(null); }, 1200);
     } catch(e) {
       setMsg("❌ Erro ao salvar: " + e.message);
+      setUploadPct(null);
     }
     setLoading(false);
   };
@@ -2236,6 +2321,7 @@ const BibliotecaAdmin = () => {
         onBack={() => { setModo(exSel ? "ver" : null); }}
         onDelete={customExs.find(e => e.id === exSel?.id) ? () => deletarEx(exSel.id) : null}
         msg={msg}
+        uploadPct={uploadPct}
       />
     );
   }
@@ -2363,7 +2449,7 @@ const BibliotecaAdmin = () => {
               <div style={{ aspectRatio:"1", overflow:"hidden", background:T.bg2, position:"relative" }}>
                 {fotoCustomizada
                   ? <img src={fotoCustomizada} alt={ex.nome} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
-                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+                  : <ExImg nome={ex.nome} musculo={ex.grupo} imgUrl={fotoCustomizada||ex.img_url} videoUrl={ex.video_url} style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
                 }
                 {/* Badge grupo */}
                 <div style={{ position:"absolute", top:6, left:6 }}>
@@ -2397,7 +2483,8 @@ const BibliotecaAdmin = () => {
 };
 
 // ─── EDITOR DE EXERCÍCIO (novo ou editar) ────────────────────────────────────
-const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg }) => {
+const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg, uploadPct }) => {
+  const T = useContext(ThemeContext);
   const [f, setF] = useState({
     ...ex,
     passos: ex.passos?.length ? ex.passos : [""],
@@ -2406,9 +2493,13 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
     principais: Array.isArray(ex.principais) ? ex.principais.join(", ") : (ex.principais||""),
     secundarios: Array.isArray(ex.secundarios) ? ex.secundarios.join(", ") : (ex.secundarios||""),
     _fotoBase64: ex._fotoBase64 || "",
+    _videoPreview: ex.video_url || "",
+    _videoFile: null,
   });
   const [showDelConfirm, setShowDelConfirm] = useState(false);
+  const [videoErr, setVideoErr] = useState("");
   const imgRef = useRef();
+  const videoRef = useRef();
 
   const handleImg = (e) => {
     const file = e.target.files[0];
@@ -2416,6 +2507,23 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
     const reader = new FileReader();
     reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result }));
     reader.readAsDataURL(file);
+  };
+
+  const handleVideo = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setVideoErr("");
+    const tiposOk = ["video/mp4","video/webm","video/quicktime","image/gif"];
+    if (!tiposOk.includes(file.type)) {
+      setVideoErr("Formato não suportado. Use MP4, WebM, MOV ou GIF.");
+      return;
+    }
+    if (file.size > 60*1024*1024) {
+      setVideoErr("Arquivo muito grande (máx. 60MB). Um vídeo curto (3-6s) já é suficiente.");
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setF(p => ({ ...p, _videoPreview: preview, _videoFile: file, video_url: file.type==="image/gif" ? "" : p.video_url }));
   };
 
   const listEdit   = (field,i,v) => setF(p=>({...p,[field]:p[field].map((x,j)=>j===i?v:x)}));
@@ -2472,6 +2580,41 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
         </button>
         <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
           {f._fotoBase64 ? "📸 Foto personalizada carregada" : "Sem foto → usa imagem padrão do banco de dados"}
+        </p>
+      </div>
+
+      {/* ── DEMONSTRAÇÃO DO EXERCÍCIO (GIF/vídeo em loop) ── */}
+      <div style={{ marginBottom:20 }}>
+        <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:.8, display:"block", marginBottom:8 }}>🎬 DEMONSTRAÇÃO DO EXERCÍCIO (opcional)</label>
+        <p style={{ margin:"0 0 10px", color:T.text3, fontSize:11, lineHeight:1.5 }}>
+          Sobe um vídeo curto (3-6s) ou GIF mostrando o movimento completo — início, execução e volta à posição inicial. Ele toca em loop automático, sem controles, no lugar da foto.
+        </p>
+        {/* Pré-visualização */}
+        <div style={{ borderRadius:16, overflow:"hidden", height:200, background:T.bg2, marginBottom:10, position:"relative" }}>
+          {f._videoPreview
+            ? <video ref={videoRef} src={f._videoPreview} autoPlay loop muted playsInline style={{ width:"100%", height:"100%", objectFit:"contain" }}/>
+            : <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <span style={{ fontSize:28 }}>🎬</span>
+                <span style={{ color:T.text3, fontSize:12 }}>Sem demonstração cadastrada</span>
+              </div>
+          }
+          {f._videoPreview && (
+            <button onClick={() => setF(p=>({...p,_videoPreview:"",_videoFile:null,video_url:""}))}
+              style={{ position:"absolute", top:10, right:10, background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:8, padding:"4px 10px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              ✕ Remover
+            </button>
+          )}
+        </div>
+        {videoErr && <p style={{ margin:"0 0 10px", color:T.red, fontSize:12 }}>{videoErr}</p>}
+        <input type="file" accept="video/mp4,video/webm,video/quicktime,image/gif" id="video-demo-input" style={{ display:"none" }} onChange={handleVideo}/>
+        <button onClick={() => document.getElementById("video-demo-input").click()} style={{ width:"100%", background:T.card2, border:`2px dashed ${T.yellow}88`, borderRadius:14, padding:"14px 0", color:T.yellow, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <Ic n="upload" size={18} color={T.yellow}/> {f._videoPreview ? "Trocar animação" : "Upload de GIF/animação"}
+        </button>
+        <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
+          {f._videoPreview ? "🎬 Quando existe animação, ela substitui a foto na visualização" : "Formatos aceitos: MP4, WebM, MOV ou GIF (máx. 60MB)"}
+        </p>
+        <p style={{ margin:"4px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
+          💡 Prefira MP4 — arquivos GIF costumam ficar muito maiores e podem demorar mais (ou falhar) numa conexão mais fraca.
         </p>
       </div>
 
@@ -2542,8 +2685,17 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 
       {msg && <div style={{ background:msg.startsWith("✅")?T.greenDim:T.redDim, borderRadius:10, padding:"10px 14px", marginBottom:12, color:msg.startsWith("✅")?T.green:T.red, fontSize:13, fontWeight:700 }}>{msg}</div>}
 
+      {loading && uploadPct!==null && (
+        <div style={{ marginBottom:12 }}>
+          <div style={{ height:8, background:T.card2, borderRadius:50, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:`${uploadPct}%`, background:T.gold, borderRadius:50, transition:"width 0.2s" }}/>
+          </div>
+          <p style={{ margin:"6px 0 0", fontSize:12, color:T.text3, textAlign:"center" }}>Enviando vídeo... {uploadPct}%</p>
+        </div>
+      )}
+
       <button onClick={handleSave} disabled={loading || !f.nome.trim()} style={{ width:"100%", background:loading?"#333":T.gold, color:T.bg, border:"none", borderRadius:14, padding:16, fontSize:15, fontWeight:900, cursor:loading?"not-allowed":"pointer", opacity:loading||!f.nome.trim()?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxSizing:"border-box" }}>
-        {loading ? "Salvando..." : <><Ic n="save" size={18} color={T.bg}/> Salvar exercício</>}
+        {loading ? (uploadPct!==null ? `Enviando vídeo... ${uploadPct}%` : "Salvando...") : <><Ic n="save" size={18} color={T.bg}/> Salvar exercício</>}
       </button>
     </div>
   );
@@ -2551,21 +2703,25 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg 
 
 // ─── NUTRI PANEL ──────────────────────────────────────────────────────────────
 const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
+  const T = T_LIGHT; // painel da nutri: fundo branco, letra um pouco maior
   const [alunoSel, setAlunoSel] = useState(null);
   const [busca, setBusca] = useState("");
 
   const filtrados = alunos.filter(a => !busca || a.nome?.toLowerCase().includes(busca.toLowerCase()) || a.cpf?.includes(busca));
 
   if (alunoSel) return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <AlunoDetalhe aluno={alunoSel} soCardapio={true} onBack={()=>setAlunoSel(null)}
       onSave={async(u)=>{ await onUpdateAluno({...u,id:alunoSel.id}); setAlunoSel({...u,id:alunoSel.id}); }}
       onDelete={()=>{}}/>
+    </ThemeContext.Provider>
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+    <ThemeContext.Provider value={T_LIGHT}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
-      <div style={{ background:`linear-gradient(135deg,#001A08,#0A0A0A)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}33`, position:"sticky", top:0, zIndex:30 }}>
+      <div style={{ background:`linear-gradient(135deg,#FFFFFF,#EAFBF1)`, padding:"16px 20px", paddingTop:"calc(16px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.green}55`, position:"sticky", top:0, zIndex:30 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <div>
             <p style={{ margin:0, fontSize:11, color:T.green, fontWeight:700, letterSpacing:1 }}>PAINEL NUTRICIONISTA</p>
@@ -2601,11 +2757,13 @@ const NutriPanel = ({ alunos, onUpdateAluno, onLogout }) => {
         </div>
       </div>
     </div>
+    </ThemeContext.Provider>
   );
 };
 
 // ─── ADMIN PANEL ──────────────────────────────────────────────────────────────
 const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAluno, onLogout, role="admin" }) => {
+  const T = T_LIGHT; // painel do admin: fundo branco, letra um pouco maior
   const [subTab,setSubTab]=useState("cadastros");  const [busca,setBusca]=useState("");
   const [alunoSel,setAlunoSel]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -2619,6 +2777,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [backupAuthErr,setBackupAuthErr]=useState("");
 
   if(alunoSel) return (
+    <ThemeContext.Provider value={T_LIGHT}>
     <AlunoDetalhe
       aluno={alunoSel}
       alunos={alunos}
@@ -2627,6 +2786,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       onSave={async(updated)=>{ await onUpdateAluno({...updated,id:alunoSel.id}); setAlunoSel({...updated,id:alunoSel.id}); }}
       onDelete={async(id)=>{ await onDeleteAluno(id); setAlunoSel(null); }}
     />
+    </ThemeContext.Provider>
   );
 
   const filtrados=alunos.filter(a=>
@@ -2712,7 +2872,8 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const ADMIN_TABS = role==="dono" ? ADMIN_TABS_ALL.filter(t=>t.id!=="config") : ADMIN_TABS_ALL;
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
+    <ThemeContext.Provider value={T_LIGHT}>
+    <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
       {showBackupAuth && (
         <Modal title="🔒 Confirmar exportação" onClose={()=>{setShowBackupAuth(false);setBackupSenha("");setBackupAuthErr("");}}>
@@ -2748,7 +2909,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
       )}
 
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,#1A1500,#0D0D00)`, padding:"20px 16px 0", paddingTop:"calc(20px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}33`, position:"sticky", top:0, zIndex:40 }}>
+      <div style={{ background:`linear-gradient(135deg,#FFFFFF,#FFF8E1)`, padding:"20px 16px 0", paddingTop:"calc(20px + env(safe-area-inset-top))", borderBottom:`1px solid ${T.yellow}55`, position:"sticky", top:0, zIndex:40 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
           <div><p style={{ margin:0, color:T.yellow, fontSize:11, fontWeight:700, letterSpacing:1 }}>{role==="dono"?"PAINEL DA ACADEMIA":"PAINEL ADMIN"}</p><h1 style={{ margin:"2px 0 0", fontSize:20, fontWeight:900, color:T.text }}>IMPÉRIO</h1></div>
           <button onClick={onLogout} style={{ background:T.redDim, border:`1px solid ${T.red}55`, borderRadius:10, padding:"8px 16px", color:T.red, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
@@ -2890,6 +3051,7 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
         )}
       </div>
     </div>
+    </ThemeContext.Provider>
   );
 };
 
@@ -3193,7 +3355,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
                 <div style={{ background:`linear-gradient(135deg,#0D0D00,#161616)`, borderRadius:20, border:`1px solid ${T.yellow}55`, overflow:"hidden", marginBottom:14, boxShadow:`0 0 30px ${T.yellow}22` }}>
                   <div style={{ display:"flex", alignItems:"stretch" }}>
                     <div style={{ width:96, height:96, flexShrink:0 }}>
-                      {atual.img ? <img src={atual.img} alt={atual.nome} style={{ width:96, height:96, objectFit:"cover", display:"block" }}/> : <ExImg nome={atual.nome} musculo={atual.musculo} imgUrl={atual.img_url} style={{width:96,height:96}}/>}
+                      {atual.img ? <img src={atual.img} alt={atual.nome} style={{ width:96, height:96, objectFit:"cover", display:"block" }}/> : <ExImg nome={atual.nome} musculo={atual.musculo} imgUrl={atual.img_url} videoUrl={atual.video_url} style={{width:96,height:96}}/>}
                     </div>
                     <div style={{ flex:1, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                       <h3 style={{ margin:"0 0 4px", fontSize:18, fontWeight:900, color:T.text }}>{atual.nome}</h3>
@@ -3280,7 +3442,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
             <div style={{ borderRadius:20, overflow:"hidden", marginBottom:16, position:"relative", height:200 }}>
               {exSel.img
                 ? <img src={exSel.img} alt={exSel.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                : <ExImg nome={exSel.nome} musculo={exSel.musculo} imgUrl={exSel.img_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                : <ExImg nome={exSel.nome} musculo={exSel.musculo} imgUrl={exSel.img_url} videoUrl={exSel.video_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
               }
               <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top,#0A0A0A 0%,transparent 50%)" }}/>
               <div style={{ position:"absolute", bottom:14, left:16, right:16, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
@@ -3453,7 +3615,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
                       return (
                         <div key={ex.id} onClick={()=>{ g.items.length>1 ? setSupersetSel({items:g.items, round:1, idx:0}) : setExSel(ex); }} style={{ background:d?"#0A1000":T.card, borderRadius:16, border:`1px solid ${d?T.green+"44":sf>0?T.yellow+"44":T.border}`, overflow:"hidden", display:"flex", alignItems:"stretch", cursor:"pointer" }}>
                           <div style={{ width:80, height:80, flexShrink:0, opacity:d?0.4:1 }}>
-                            {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} style={{width:80,height:80}}/>}
+                            {ex.img ? <img src={ex.img} alt={ex.nome} style={{ width:80, height:80, objectFit:"cover", display:"block" }}/> : <ExImg nome={ex.nome} musculo={ex.musculo} imgUrl={ex.img_url} videoUrl={ex.video_url} style={{width:80,height:80}}/>}
                           </div>
                           <div style={{ flex:1, padding:"10px 12px", display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
                             <p style={{ margin:0, fontSize:14, fontWeight:700, color:d?T.text3:T.text, textDecoration:d?"line-through":"none" }}>{ex.nome}</p>
