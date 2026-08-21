@@ -3223,11 +3223,40 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const fichas=Object.keys(aluno.treinos||{});
   const exList=aluno.treinos?.[treinoAtivo]||[];
   // Verifica se o TREINO INTEIRO (todos os exercícios normais + todas as rodadas de bi-set/tri-set) já foi concluído
+  // Data de hoje (usada pra saber se o progresso salvo ainda vale, ou se é
+  // um novo dia e o treino deve começar zerado de novo)
+  const hojeStr = () => new Date().toISOString().slice(0,10);
+
+  // Carrega o progresso salvo do Firestore ao trocar de ficha (Treino A/B/C)
+  // ou quando os dados do aluno chegam/atualizam
+  useEffect(() => {
+    const salvo = aluno.progresso?.[treinoAtivo];
+    if (salvo && salvo.data === hojeStr()) {
+      setDone(salvo.done || []);
+      setSeriesDone(salvo.seriesDone || {});
+      if (salvo.comemorado) setComemorados(p => p.includes(treinoAtivo) ? p : [...p, treinoAtivo]);
+    } else {
+      setDone([]);
+      setSeriesDone({});
+    }
+  }, [treinoAtivo, aluno.progresso]);
+
+  // Salva o progresso (exercícios concluídos, séries feitas) de verdade no
+  // Firestore, pra não sumir quando o app recarrega ou o aluno sai e entra
+  const salvarProgresso = (novoDone, novoSeriesDone, jaComemorou) => {
+    const progresso = {
+      ...(aluno.progresso || {}),
+      [treinoAtivo]: { done: novoDone, seriesDone: novoSeriesDone, comemorado: !!jaComemorou, data: hojeStr() },
+    };
+    onUpdateAluno({ ...aluno, progresso });
+  };
+
   const verificarTreinoCompleto = (doneAtualizado) => {
     if (exList.length===0) return;
     const tudoFeito = exList.every(ex => doneAtualizado.includes(ex.id));
     if (tudoFeito && !comemorados.includes(treinoAtivo)) {
       setComemorados(p => [...p, treinoAtivo]);
+      salvarProgresso(doneAtualizado, seriesDone, true);
       setTimeout(() => setCelebrando(true), 500); // pequeno delay pra fechar a tela do exercício antes
     }
   };
@@ -3325,6 +3354,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
             setDone(novoDone);
             setSupersetSel(null);
             verificarTreinoCompleto(novoDone);
+            if (!exList.every(ex => novoDone.includes(ex.id))) salvarProgresso(novoDone, seriesDone, comemorados.includes(treinoAtivo));
           }
         };
 
@@ -3424,22 +3454,28 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
         // Ao completar todas as séries → marca como concluído automaticamente
         const marcarSerie = () => {
           const novas = (seriesDone[exSel.id] || 0) + 1;
-          setSeriesDone(p => ({ ...p, [exSel.id]: novas }));
+          const novoSeriesDone = { ...seriesDone, [exSel.id]: novas };
+          setSeriesDone(novoSeriesDone);
           if (novas >= totalSeries) {
             const novoDone = done.includes(exSel.id) ? done : [...done, exSel.id];
             setDone(novoDone);
             setTimerSeg(null);
             setTimeout(() => setExSel(null), 900); // volta após animação
             verificarTreinoCompleto(novoDone);
+            if (!exList.every(ex => novoDone.includes(ex.id))) salvarProgresso(novoDone, novoSeriesDone, comemorados.includes(treinoAtivo));
           } else {
             setTimerSeg(parseDescanso(exSel.descanso)); // abre timer automático
+            salvarProgresso(done, novoSeriesDone, comemorados.includes(treinoAtivo));
           }
         };
 
         const resetSeries = () => {
-          setSeriesDone(p => ({ ...p, [exSel.id]: 0 }));
-          setDone(p => p.filter(x => x !== exSel.id));
+          const novoSeriesDone = { ...seriesDone, [exSel.id]: 0 };
+          const novoDone = done.filter(x => x !== exSel.id);
+          setSeriesDone(novoSeriesDone);
+          setDone(novoDone);
           setTimerSeg(null);
+          salvarProgresso(novoDone, novoSeriesDone, comemorados.includes(treinoAtivo));
         };
 
         return (
