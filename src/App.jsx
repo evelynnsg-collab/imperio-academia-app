@@ -2504,6 +2504,15 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg,
   const handleImg = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setVideoErr("");
+    if (file.type === "image/gif") {
+      setVideoErr("GIF vai no campo \"Demonstração do exercício\" (mais abaixo) — ali ele toca em loop igual um vídeo, com barra de progresso pra não travar. Esse campo aqui de cima é só pra foto estática.");
+      return;
+    }
+    if (file.size > 15*1024*1024) {
+      setVideoErr("Foto muito grande (máx. 15MB). Se for GIF/animação, usa o campo \"Demonstração do exercício\" mais abaixo.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result }));
     reader.readAsDataURL(file);
@@ -2578,6 +2587,7 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg,
         <button onClick={() => imgRef.current.click()} style={{ width:"100%", background:T.card2, border:`2px dashed ${T.yellow}88`, borderRadius:14, padding:"14px 0", color:T.yellow, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
           <Ic n="upload" size={18} color={T.yellow}/> {f._fotoBase64 ? "Trocar foto" : "Fazer upload da foto"}
         </button>
+        {videoErr && <p style={{ margin:"6px 0 0", color:T.red, fontSize:12, lineHeight:1.5 }}>{videoErr}</p>}
         <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
           {f._fotoBase64 ? "📸 Foto personalizada carregada" : "Sem foto → usa imagem padrão do banco de dados"}
         </p>
