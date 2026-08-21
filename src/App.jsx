@@ -15,15 +15,44 @@ const firebaseConfig = {
   appId: "1:583980259345:web:9425a8afb1325a66b779b0"
 };
 
-import { getStorage, ref as storageRef, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, listAll } from "firebase/storage";
-
 const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const db     = getFirestore(fbApp);
-const storage = getStorage(fbApp);
-// Vídeos/GIFs podem ser grandes e o upload lento numa conexão de celular —
-// aumenta o tempo que o Firebase tenta antes de desistir (padrão é ~2 min).
-storage.maxUploadRetryTime = 10 * 60 * 1000; // 10 minutos
+
+// ─── UPLOAD DE ARQUIVOS (Cloudinary) ───────────────────────────────────────────
+// Fotos, GIFs e vídeos de exercícios/evolução agora sobem pro Cloudinary em vez
+// do Firebase Storage — mesma ideia (link estável de volta), mas gerenciável
+// direto pelo painel do Cloudinary (dfz6xf14).
+const CLOUDINARY_CLOUD_NAME = "dfz6xf14";
+const CLOUDINARY_UPLOAD_PRESET = "ml_default"; // preset "sem assinatura" configurado no Cloudinary
+
+function uploadToCloudinary(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          resolve({ url: res.secure_url, publicId: res.public_id });
+        } catch (e) { reject(new Error("Resposta inválida do Cloudinary")); }
+      } else {
+        let msg = "Falha no upload (status " + xhr.status + ")";
+        try { msg = JSON.parse(xhr.responseText)?.error?.message || msg; } catch(e) {}
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Erro de rede no upload"));
+    xhr.send(formData);
+  });
+}
 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 // Salva aluno no Firestore
@@ -1873,27 +1902,21 @@ const ExForm = ({ ex, onSave, onCancel }) => {
   const [uploadPct, setUploadPct] = useState(null);
   const [uploadErr, setUploadErr] = useState("");
   const imgRef=useRef();
-  const handleImg = (e) => {
+  const handleImg = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadErr("");
-    // Preview local imediato, enquanto sobe de verdade pro Storage
+    // Preview local imediato, enquanto sobe de verdade pro Cloudinary
     const localPreview = URL.createObjectURL(file);
     setF(p => ({ ...p, img: localPreview }));
-    const ext = file.type === "image/gif" ? "gif" : file.type === "image/png" ? "png" : file.type === "video/mp4" ? "mp4" : file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "jpg";
-    const path = `treino_exercicios/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const fileRef = storageRef(storage, path);
     setUploadPct(0);
-    const task = uploadBytesResumable(fileRef, file);
-    task.on("state_changed",
-      snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-      err => { setUploadErr("Não foi possível subir o arquivo. Tenta de novo."); setUploadPct(null); },
-      async () => {
-        const url = await getDownloadURL(fileRef);
-        setF(p => ({ ...p, img: url, img_url: url }));
-        setUploadPct(null);
-      }
-    );
+    try {
+      const { url } = await uploadToCloudinary(file, pct => setUploadPct(pct));
+      setF(p => ({ ...p, img: url, img_url: url }));
+    } catch (err) {
+      setUploadErr("Não foi possível subir o arquivo. Tenta de novo.");
+    }
+    setUploadPct(null);
   };
   // foto atual: img (upload manual) ou img_url (da biblioteca)
   const fotoAtual = f.img || f.img_url || getExImg(f.nome);
@@ -2045,22 +2068,18 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
 
   useEffect(() => { if(alunoId) carregarDados(); }, [alunoId]);
 
-  // Upload de foto para Firebase Storage
+  // Upload de foto para o Cloudinary
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true); setMsg("");
     try {
-      const timestamp = Date.now();
-      const path = `evolucao/${alunoId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g,"_")}`;
-      const ref = storageRef(storage, path);
-      await uploadBytes(ref, file);
-      const url = await getDownloadURL(ref);
+      const { url, publicId } = await uploadToCloudinary(file);
       const novaFoto = {
-        url, path,
+        url, path: publicId,
         data: new Date().toLocaleDateString("pt-BR"),
         obs: "",
-        timestamp,
+        timestamp: Date.now(),
       };
       const novaLista = [...fotos, novaFoto];
       await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
@@ -2074,11 +2093,10 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
     e.target.value = "";
   };
 
-  // Deletar foto do Storage + Firestore
+  // Remove a foto da ficha do aluno (o arquivo em si fica no painel do
+  // Cloudinary — apagar de lá exige uma chamada assinada/servidor, então
+  // limpeza de arquivo é feita direto no painel do Cloudinary quando quiser)
   const deletarFoto = async (foto) => {
-    try {
-      await deleteObject(storageRef(storage, foto.path));
-    } catch(e) { /* já deletado */ }
     const novaLista = fotos.filter(f => f.path !== foto.path);
     await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
     setFotos(novaLista);
@@ -2269,46 +2287,30 @@ const BibliotecaAdmin = () => {
     })();
   }, []);
 
-  // Salva exercício no Firestore (foto vai pro Storage, não fica no documento)
+  // Salva exercício no Firestore (foto/vídeo vão pro Cloudinary, não ficam no documento)
   const salvarExercicio = async (ex) => {
     setLoading(true); setMsg(""); setUploadPct(null);
     try {
       const id = ex.id || "custom_" + Date.now();
       let fotoFinal = ex._fotoBase64 || "";
       // Se for uma foto nova (recém-selecionada, ainda em base64), sobe pro
-      // Storage e troca por um link — evita o limite de 1MB do Firestore,
+      // Cloudinary e troca por um link — evita o limite de 1MB do Firestore,
       // e aceita foto (inclusive GIF) de qualquer tamanho, com progresso.
       if (fotoFinal.startsWith("data:")) {
         const blob = ex._fotoFile || await (await fetch(fotoFinal)).blob();
-        const fotoExt = blob.type === "image/gif" ? "gif" : blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-        const imgRef = storageRef(storage, `biblioteca_custom/${id}.${fotoExt}`);
         setUploadPct(0);
-        fotoFinal = await new Promise((resolve, reject) => {
-          const task = uploadBytesResumable(imgRef, blob);
-          task.on("state_changed",
-            snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-            err => reject(err),
-            async () => resolve(await getDownloadURL(imgRef))
-          );
-        });
+        const { url } = await uploadToCloudinary(blob, pct => setUploadPct(pct));
+        fotoFinal = url;
         setUploadPct(null);
       }
       let videoFinal = ex.video_url || "";
-      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage —
+      // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Cloudinary —
       // com barra de progresso, porque vídeo pode demorar bastante numa
       // conexão de celular mais lenta.
       if (ex._videoFile) {
-        const ext = ex._videoFile.type === "image/gif" ? "gif" : (ex._videoFile.type === "video/webm" ? "webm" : (ex._videoFile.type === "video/quicktime" ? "mov" : "mp4"));
-        const vidRef = storageRef(storage, `biblioteca_custom/${id}_demo.${ext}`);
         setUploadPct(0);
-        videoFinal = await new Promise((resolve, reject) => {
-          const task = uploadBytesResumable(vidRef, ex._videoFile);
-          task.on("state_changed",
-            snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-            err => reject(err),
-            async () => resolve(await getDownloadURL(vidRef))
-          );
-        });
+        const { url } = await uploadToCloudinary(ex._videoFile, pct => setUploadPct(pct));
+        videoFinal = url;
         setUploadPct(null);
       }
       const { _videoFile, _videoPreview, _fotoFile, ...exSemAuxiliares } = ex;
