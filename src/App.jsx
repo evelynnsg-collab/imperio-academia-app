@@ -2241,12 +2241,21 @@ const BibliotecaAdmin = () => {
       let fotoFinal = ex._fotoBase64 || "";
       // Se for uma foto nova (recém-selecionada, ainda em base64), sobe pro
       // Storage e troca por um link — evita o limite de 1MB do Firestore,
-      // então aceita foto de qualquer tamanho.
+      // e aceita foto (inclusive GIF) de qualquer tamanho, com progresso.
       if (fotoFinal.startsWith("data:")) {
-        const blob = await (await fetch(fotoFinal)).blob();
-        const imgRef = storageRef(storage, `biblioteca_custom/${id}.jpg`);
-        await uploadBytes(imgRef, blob);
-        fotoFinal = await getDownloadURL(imgRef);
+        const blob = ex._fotoFile || await (await fetch(fotoFinal)).blob();
+        const fotoExt = blob.type === "image/gif" ? "gif" : blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+        const imgRef = storageRef(storage, `biblioteca_custom/${id}.${fotoExt}`);
+        setUploadPct(0);
+        fotoFinal = await new Promise((resolve, reject) => {
+          const task = uploadBytesResumable(imgRef, blob);
+          task.on("state_changed",
+            snap => setUploadPct(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+            err => reject(err),
+            async () => resolve(await getDownloadURL(imgRef))
+          );
+        });
+        setUploadPct(null);
       }
       let videoFinal = ex.video_url || "";
       // Se uma nova animação (GIF/vídeo) foi selecionada, sobe pro Storage —
@@ -2266,7 +2275,7 @@ const BibliotecaAdmin = () => {
         });
         setUploadPct(null);
       }
-      const { _videoFile, _videoPreview, ...exSemAuxiliares } = ex;
+      const { _videoFile, _videoPreview, _fotoFile, ...exSemAuxiliares } = ex;
       const data = { ...exSemAuxiliares, id, _fotoBase64: fotoFinal, video_url: videoFinal };
       await setDoc(doc(db, "biblioteca_custom", id), data);
       if(customExs.find(e => e.id === id)) {
@@ -2505,16 +2514,8 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg,
     const file = e.target.files[0];
     if (!file) return;
     setVideoErr("");
-    if (file.type === "image/gif") {
-      setVideoErr("GIF vai no campo \"Demonstração do exercício\" (mais abaixo) — ali ele toca em loop igual um vídeo, com barra de progresso pra não travar. Esse campo aqui de cima é só pra foto estática.");
-      return;
-    }
-    if (file.size > 15*1024*1024) {
-      setVideoErr("Foto muito grande (máx. 15MB). Se for GIF/animação, usa o campo \"Demonstração do exercício\" mais abaixo.");
-      return;
-    }
     const reader = new FileReader();
-    reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result }));
+    reader.onload = ev => setF(p => ({ ...p, _fotoBase64: ev.target.result, _fotoFile: file }));
     reader.readAsDataURL(file);
   };
 
