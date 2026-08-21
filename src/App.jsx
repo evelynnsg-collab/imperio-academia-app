@@ -21,6 +21,9 @@ const fbApp  = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const db     = getFirestore(fbApp);
 const storage = getStorage(fbApp);
+// Vídeos/GIFs podem ser grandes e o upload lento numa conexão de celular —
+// aumenta o tempo que o Firebase tenta antes de desistir (padrão é ~2 min).
+storage.maxUploadRetryTime = 10 * 60 * 1000; // 10 minutos
 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 // Salva aluno no Firestore
@@ -2609,6 +2612,9 @@ const ExercicioEditor = ({ ex, isCustom, loading, onSave, onBack, onDelete, msg,
         </button>
         <p style={{ margin:"6px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
           {f._videoPreview ? "🎬 Quando existe animação, ela substitui a foto na visualização" : "Formatos aceitos: MP4, WebM, MOV ou GIF (máx. 60MB)"}
+        </p>
+        <p style={{ margin:"4px 0 0", color:T.text3, fontSize:11, textAlign:"center" }}>
+          💡 Prefira MP4 — arquivos GIF costumam ficar muito maiores e podem demorar mais (ou falhar) numa conexão mais fraca.
         </p>
       </div>
 
