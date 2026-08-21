@@ -1432,15 +1432,23 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const [redefinindo,setRedefinindo]=useState(false);
   const [statusRedefinir,setStatusRedefinir]=useState(null); // { ok, msg }
 
-  const salvarTudo = () => {
+  const [erroSalvar, setErroSalvar] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const salvarTudo = async () => {
     const cpfNovo = String(dados.cpf||"").replace(/\D/g,"");
     const cpfAtual = aluno.id;
     if (!soCardapio && cpfNovo && cpfNovo !== cpfAtual) {
       setConfirmMigracao({ cpfAntigo:cpfAtual, cpfNovo });
       return;
     }
-    onSave({ ...dados, treinos, cardapio });
-    setSaved(true); setTimeout(()=>setSaved(false),2000);
+    setSalvando(true); setErroSalvar("");
+    try {
+      await onSave({ ...dados, treinos, cardapio });
+      setSaved(true); setTimeout(()=>setSaved(false),2000);
+    } catch(e) {
+      setErroSalvar("❌ Não foi possível salvar — verifique sua conexão e tenta de novo. (" + (e.message||"erro desconhecido") + ")");
+    }
+    setSalvando(false);
   };
 
   const confirmarMigracaoCpf = async () => {
@@ -1615,11 +1623,12 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
             <button onClick={()=>setShowConfirm(true)} style={{ background:T.redDim, border:`1px solid ${T.red}44`, borderRadius:8, padding:"7px 12px", color:T.red, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
               <Ic n="trash" size={12} color={T.red}/>Excluir
             </button>
-            <button onClick={salvarTudo} style={{ background:saved?T.greenDim:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:saved?T.green:T.bg, fontSize:13, fontWeight:900, cursor:"pointer", transition:"all .2s" }}>
-              {saved ? "✓ Salvo!" : "💾 Salvar"}
+            <button onClick={salvarTudo} disabled={salvando} style={{ background:saved?T.greenDim:T.gold, border:"none", borderRadius:8, padding:"7px 14px", color:saved?T.green:T.bg, fontSize:13, fontWeight:900, cursor:salvando?"default":"pointer", transition:"all .2s", opacity:salvando?0.7:1 }}>
+              {salvando ? "Salvando..." : saved ? "✓ Salvo!" : "💾 Salvar"}
             </button>
           </div>
         </div>
+        {erroSalvar && <p style={{ margin:"0 0 12px", color:T.red, fontSize:12, fontWeight:700, lineHeight:1.5 }}>{erroSalvar}</p>}
 
         {/* Info aluno */}
         <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
