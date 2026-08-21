@@ -1014,7 +1014,7 @@ const BibliotecaModal = ({ onAdd, onClose }) => {
             <Inp label="LINK DO VÍDEO (opcional)" value={editando.video||""} onChange={v=>setEditando(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
             <div style={{ display:"flex", gap:10, marginTop:16 }}>
               <Btn onClick={()=>setEditando(null)} outline style={{ flex:1 }}>Voltar</Btn>
-              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url, video_url:exSel.video_url, ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
+              <Btn onClick={()=>{ onAdd({ id:Date.now(), nome:exSel.nome, musculo:exSel.grupo, principais:exSel.principais, img:"", img_url:exSel.img_url||"", video_url:exSel.video_url||"", ...editando }); onClose(); }} style={{ flex:2, color:T.bg }}>
                 <Ic n="plus" size={14} color={T.bg}/>Adicionar ao treino
               </Btn>
             </div>
