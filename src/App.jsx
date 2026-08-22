@@ -2856,10 +2856,13 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
           novosTreinos[ficha] = (aluno.treinos[ficha]||[]).map(ex => {
             const atual = mapa[String(ex.nome||"").trim().toLowerCase()];
             if (!atual) return ex;
-            const precisaAtualizar = atual.img_url !== (ex.img_url||"") || atual.video_url !== (ex.video_url||"");
+            const precisaAtualizar = atual.img_url !== (ex.img_url||"") || atual.video_url !== (ex.video_url||"") || !!ex.img;
             if (!precisaAtualizar) return ex;
             mudou = true; exerciciosAtualizados++;
-            return { ...ex, img_url: atual.img_url, video_url: atual.video_url };
+            // "img" é a foto direta e tem prioridade na tela — precisa ser
+            // zerada (ou trocada pela mesma da biblioteca), senão a foto
+            // antiga continua aparecendo mesmo com o img_url atualizado.
+            return { ...ex, img:"", img_url: atual.img_url, video_url: atual.video_url };
           });
         }
         if (mudou) {
