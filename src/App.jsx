@@ -1440,6 +1440,16 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const [dados,setDados]=useState({...aluno});
   const [treinos,setTreinos]=useState(aluno.treinos||{});
   const [cardapio,setCardapio]=useState(aluno.cardapio||{});
+  // Ordem de exibição das fichas (Treino A/B/C...) — guardada à parte porque
+  // a ordem das chaves de um objeto não é garantida quando volta do banco
+  const [fichaOrdem,setFichaOrdem]=useState(() => {
+    const salva = aluno.treino_ordem || [];
+    const chaves = Object.keys(aluno.treinos||{});
+    const validas = salva.filter(f => chaves.includes(f));
+    const faltando = chaves.filter(f => !validas.includes(f));
+    return [...validas, ...faltando];
+  });
+  const [arrastando,setArrastando]=useState(null); // nome da ficha sendo arrastada
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"Treino A");
   const [showConfirm,setShowConfirm]=useState(false);
   const [showCopiarTreino,setShowCopiarTreino]=useState(false);
@@ -1472,7 +1482,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
     }
     setSalvando(true); setErroSalvar("");
     try {
-      await onSave({ ...dados, treinos, cardapio });
+      await onSave({ ...dados, treinos, cardapio, treino_ordem: fichaOrdem });
       setSaved(true); setTimeout(()=>setSaved(false),2000);
     } catch(e) {
       setErroSalvar("❌ Não foi possível salvar — verifique sua conexão e tenta de novo. (" + (e.message||"erro desconhecido") + ")");
@@ -1516,11 +1526,13 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const addFicha = () => {
     if(!newFicha.trim()) return;
     setTreinos(p=>({...p,[newFicha]:[]}));
+    setFichaOrdem(p=>[...p,newFicha]);
     setTreinoAtivo(newFicha); setNewFicha(""); setShowAddFicha(false);
   };
   const deleteFicha = (f) => {
     const t={...treinos}; delete t[f];
     setTreinos(t); setTreinoAtivo(Object.keys(t)[0]||"");
+    setFichaOrdem(p=>p.filter(x=>x!==f));
   };
   const saveEx = (ex) => {
     setTreinos(p=>{
@@ -1713,10 +1725,27 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
         {tab==="treinos" && (
           <div>
             {showBiblioteca && <BibliotecaModal onAdd={(ex)=>{ saveEx(ex); setShowBiblioteca(false); }} onClose={()=>setShowBiblioteca(false)}/>}
-            {/* Fichas */}
+            {/* Fichas — arrastar horizontalmente pra reordenar */}
             <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:8, marginBottom:16 }}>
-              {Object.keys(treinos).map(f=>(
-                <div key={f} style={{ display:"flex", flexShrink:0 }}>
+              {fichaOrdem.filter(f=>treinos[f]!==undefined).map(f=>(
+                <div
+                  key={f}
+                  draggable
+                  onDragStart={(e)=>{ setArrastando(f); e.dataTransfer.effectAllowed="move"; }}
+                  onDragEnd={()=>setArrastando(null)}
+                  onDragOver={(e)=>{ e.preventDefault(); e.dataTransfer.dropEffect="move"; }}
+                  onDrop={(e)=>{
+                    e.preventDefault();
+                    if(!arrastando || arrastando===f) return;
+                    setFichaOrdem(prev=>{
+                      const semArrastado = prev.filter(x=>x!==arrastando);
+                      const alvoIdx = semArrastado.indexOf(f);
+                      return [...semArrastado.slice(0,alvoIdx), arrastando, ...semArrastado.slice(alvoIdx)];
+                    });
+                    setArrastando(null);
+                  }}
+                  style={{ display:"flex", flexShrink:0, opacity:arrastando===f?0.4:1, cursor:"grab", transition:"opacity .15s" }}
+                >
                   <button onClick={()=>setTreinoAtivo(f)} style={{ background:treinoAtivo===f?T.gold:"transparent", border:`1px solid ${treinoAtivo===f?T.yellow:T.border}`, borderRadius:10, padding:"8px 14px", color:treinoAtivo===f?T.bg:T.text3, fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>{f}</button>
                   {Object.keys(treinos).length>1 && <button onClick={()=>deleteFicha(f)} style={{ background:"transparent", border:"none", color:T.text3, cursor:"pointer", padding:"0 4px", fontSize:16 }}>×</button>}
                 </div>
@@ -3334,7 +3363,7 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   const [seriesDone,setSeriesDone]=useState({}); // { [exId]: nº séries feitas }
   const [timerSeg,setTimerSeg]=useState(null);
   const [treinoAtivo,setTreinoAtivo]=useState(Object.keys(aluno.treinos||{})[0]||"");
-  const fichas=Object.keys(aluno.treinos||{});
+  const fichas=(aluno.treino_ordem||[]).filter(f=>aluno.treinos?.[f]!==undefined).concat(Object.keys(aluno.treinos||{}).filter(f=>!(aluno.treino_ordem||[]).includes(f)));
   const exList=aluno.treinos?.[treinoAtivo]||[];
   // Verifica se o TREINO INTEIRO (todos os exercícios normais + todas as rodadas de bi-set/tri-set) já foi concluído
   // Data de hoje (usada pra saber se o progresso salvo ainda vale, ou se é
