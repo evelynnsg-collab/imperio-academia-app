@@ -808,15 +808,15 @@ const Modal = ({ title, onClose, children }) => {
     </div>
   );
 };
-const Confirm = ({ msg, onYes, onNo }) => {
+const Confirm = ({ msg, onYes, onNo, yesLabel="Excluir", danger=true }) => {
   const T = useContext(ThemeContext);
   return (
     <div style={{ position:"fixed", inset:0, background:"#000C", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${T.red}44` }}>
+      <div style={{ background:T.card, borderRadius:20, padding:24, width:"100%", maxWidth:340, border:`1px solid ${danger?T.red:T.yellow}44` }}>
         <p style={{ color:T.text, fontSize:15, fontWeight:600, marginBottom:20, textAlign:"center" }}>{msg}</p>
         <div style={{ display:"flex", gap:10 }}>
           <Btn onClick={onNo} outline style={{ flex:1 }}>Cancelar</Btn>
-          <Btn onClick={onYes} danger style={{ flex:1 }}>Excluir</Btn>
+          <Btn onClick={onYes} danger={danger} style={{ flex:1 }}>{yesLabel}</Btn>
         </div>
       </div>
     </div>
@@ -2824,6 +2824,58 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
   const [showBackupAuth,setShowBackupAuth]=useState(false);
   const [backupSenha,setBackupSenha]=useState("");
   const [backupAuthErr,setBackupAuthErr]=useState("");
+  const [sincronizando,setSincronizando]=useState(false);
+  const [syncProgresso,setSyncProgresso]=useState("");
+  const [syncResultado,setSyncResultado]=useState(null); // { alunos, exercicios }
+  const [confirmSync,setConfirmSync]=useState(false);
+
+  // Atualiza as fotos/animações dos exercícios já montados nos treinos dos
+  // alunos, puxando a versão mais atual da Biblioteca (casando pelo nome do
+  // exercício). Não mexe em exercícios com foto manual própria além da
+  // referência da biblioteca — sempre segura, porque a foto manual (campo
+  // "img") continua tendo prioridade na exibição.
+  const sincronizarFotosTreinos = async () => {
+    setSincronizando(true); setSyncResultado(null);
+    try {
+      // Monta o mapa nome→foto/vídeo atual, juntando o banco fixo com os
+      // exercícios customizados salvos no Firestore
+      const snap = await getDocs(collection(db, "biblioteca_custom"));
+      const customs = snap.docs.map(d => d.data());
+      const mapa = {};
+      BIBLIOTECA_FULL.forEach(ex => { mapa[ex.nome.trim().toLowerCase()] = { img_url: ex.img_url||"", video_url: ex.video_url||"" }; });
+      customs.forEach(ex => { if (ex.nome) mapa[ex.nome.trim().toLowerCase()] = { img_url: ex._fotoBase64||ex.img_url||"", video_url: ex.video_url||"" }; });
+
+      let alunosAtualizados = 0, exerciciosAtualizados = 0;
+      for (let i=0; i<alunos.length; i++) {
+        const aluno = alunos[i];
+        setSyncProgresso(`Verificando ${i+1}/${alunos.length}: ${aluno.nome}`);
+        if (!aluno.treinos) continue;
+        let mudou = false;
+        const novosTreinos = {};
+        for (const ficha of Object.keys(aluno.treinos)) {
+          novosTreinos[ficha] = (aluno.treinos[ficha]||[]).map(ex => {
+            const atual = mapa[String(ex.nome||"").trim().toLowerCase()];
+            if (!atual) return ex;
+            const precisaAtualizar = atual.img_url !== (ex.img_url||"") || atual.video_url !== (ex.video_url||"") || !!ex.img;
+            if (!precisaAtualizar) return ex;
+            mudou = true; exerciciosAtualizados++;
+            // "img" é a foto direta e tem prioridade na tela — precisa ser
+            // zerada (ou trocada pela mesma da biblioteca), senão a foto
+            // antiga continua aparecendo mesmo com o img_url atualizado.
+            return { ...ex, img:"", img_url: atual.img_url, video_url: atual.video_url };
+          });
+        }
+        if (mudou) {
+          await onUpdateAluno({ ...aluno, treinos: novosTreinos });
+          alunosAtualizados++;
+        }
+      }
+      setSyncResultado({ alunos: alunosAtualizados, exercicios: exerciciosAtualizados });
+    } catch(e) {
+      setSyncResultado({ erro: e.message });
+    }
+    setSyncProgresso(""); setSincronizando(false); setConfirmSync(false);
+  };
 
   if(alunoSel) return (
     <ThemeContext.Provider value={T_LIGHT}>
@@ -2924,6 +2976,15 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
     <ThemeContext.Provider value={T_LIGHT}>
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0, zoom:1.08 }}>
       <Watermark/>
+      {confirmSync && (
+        <Confirm
+          msg={`Isso vai varrer todos os ${alunos.length} alunos e atualizar as fotos dos exercícios pra versão mais recente da Biblioteca. Pode demorar um pouco. Continuar?`}
+          onYes={sincronizarFotosTreinos}
+          onNo={()=>setConfirmSync(false)}
+          yesLabel="Atualizar"
+          danger={false}
+        />
+      )}
       {showBackupAuth && (
         <Modal title="🔒 Confirmar exportação" onClose={()=>{setShowBackupAuth(false);setBackupSenha("");setBackupAuthErr("");}}>
           <p style={{ margin:"0 0 14px", color:T.text2, fontSize:13, lineHeight:1.5 }}>Digite a senha para autorizar o download do backup com os dados de todos os alunos.</p>
@@ -3078,6 +3139,21 @@ const AdminPanel = ({ alunos, setAlunos, onAddAluno, onUpdateAluno, onDeleteAlun
         {/* ── CONFIG ── */}
         {subTab==="config" && role!=="dono" && (
           <div>
+            <Sec title="Fotos da Biblioteca">
+              <Card style={{ padding:16, marginBottom:8, border:`1px solid ${T.yellow}33` }}>
+                <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:800, color:T.text }}>🔄 Atualizar fotos nos treinos já montados</p>
+                <p style={{ margin:"0 0 14px", fontSize:12, color:T.text3, lineHeight:1.5 }}>Quando você troca uma foto na Biblioteca, os treinos que já foram montados pros alunos continuam com a foto antiga (ela é copiada na hora que você adiciona o exercício). Isso aqui varre todos os alunos e atualiza pra foto/animação mais recente da Biblioteca, casando pelo nome do exercício.</p>
+                {syncProgresso && <p style={{ margin:"0 0 10px", fontSize:12, color:T.text3, fontStyle:"italic" }}>{syncProgresso}</p>}
+                {syncResultado && (
+                  <div style={{ background:syncResultado.erro?T.redDim:T.greenDim, borderRadius:10, padding:"10px 14px", marginBottom:10, color:syncResultado.erro?T.red:T.green, fontSize:13, fontWeight:700 }}>
+                    {syncResultado.erro ? `❌ Erro: ${syncResultado.erro}` : `✅ Pronto! ${syncResultado.alunos} aluno(s) atualizado(s), ${syncResultado.exercicios} exercício(s) sincronizado(s).`}
+                  </div>
+                )}
+                <button onClick={()=>setConfirmSync(true)} disabled={sincronizando} style={{ width:"100%", background:sincronizando?"#333":T.gold, border:"none", borderRadius:12, padding:14, color:T.bg, fontSize:14, fontWeight:900, cursor:sincronizando?"not-allowed":"pointer", opacity:sincronizando?0.7:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                  {sincronizando ? "Sincronizando..." : "🔄 Atualizar fotos de todos os alunos"}
+                </button>
+              </Card>
+            </Sec>
             <Sec title="Backup dos dados">
               <Card style={{ padding:16, marginBottom:8, border:`1px solid ${T.yellow}33` }}>
                 <p style={{ margin:"0 0 4px", fontSize:14, fontWeight:800, color:T.text }}>📦 Exportar backup completo</p>
