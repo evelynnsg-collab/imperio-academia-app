@@ -95,6 +95,20 @@ async function migrarCpfAluno(dadosCompletos, cpfAntigo, cpfNovo) {
 }
 
 export {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  onSnapshot,
+  serverTimestamp,
+  query,
+  orderBy,
   fbAuth,
   db,
   fbSecondaryAuth,
