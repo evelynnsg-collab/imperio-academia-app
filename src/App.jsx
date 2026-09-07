@@ -1,102 +1,17 @@
 import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 import html2canvas from "html2canvas";
-
-// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp, query, orderBy } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAaNDr6O36T_VCCk1p4iK29npFA2o92JwM",
-  authDomain: "imperio-academia.firebaseapp.com",
-  projectId: "imperio-academia",
-  storageBucket: "imperio-academia.firebasestorage.app",
-  messagingSenderId: "583980259345",
-  appId: "1:583980259345:web:9425a8afb1325a66b779b0"
-};
-
-const fbApp = getApps().find(app => app.name === "[DEFAULT]") || initializeApp(firebaseConfig);
-const fbAuth = getAuth(fbApp);
-const db = getFirestore(fbApp);
-
-// Auth secundário: cria/redefine contas de alunos sem trocar a sessão do admin/nutri.
-const fbSecondaryApp = getApps().find(app => app.name === "imperio-secondary-auth") || initializeApp(firebaseConfig, "imperio-secondary-auth");
-const fbSecondaryAuth = getAuth(fbSecondaryApp);
-
-// ─── UPLOAD DE ARQUIVOS (Cloudinary) ───────────────────────────────────────────
-// Fotos, GIFs e vídeos de exercícios/evolução agora sobem pro Cloudinary em vez
-// do Firebase Storage — mesma ideia (link estável de volta), mas gerenciável
-// direto pelo painel do Cloudinary (dfz6xf14).
-const CLOUDINARY_CLOUD_NAME = "dfz6xf14";
-const CLOUDINARY_UPLOAD_PRESET = "ml_default"; // preset "sem assinatura" configurado no Cloudinary
-
-function uploadToCloudinary(file, onProgress) {
-  return new Promise((resolve, reject) => {
-    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const res = JSON.parse(xhr.responseText);
-          resolve({ url: res.secure_url, publicId: res.public_id });
-        } catch (e) { reject(new Error("Resposta inválida do Cloudinary")); }
-      } else {
-        let msg = "Falha no upload (status " + xhr.status + ")";
-        try { msg = JSON.parse(xhr.responseText)?.error?.message || msg; } catch(e) {}
-        reject(new Error(msg));
-      }
-    };
-    xhr.onerror = () => reject(new Error("Erro de rede no upload"));
-    xhr.send(formData);
-  });
-}
-
-// ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
-// Salva aluno no Firestore
-async function salvarAluno(aluno) {
-  await setDoc(doc(db, "alunos", aluno.id), aluno);
-}
-// Busca todos os alunos
-async function buscarAlunos() {
-  const snap = await getDocs(collection(db, "alunos"));
-  return snap.docs.map(d => d.data());
-}
-// Deleta aluno
-async function deletarAluno(id) {
-  await deleteDoc(doc(db, "alunos", id));
-  // Deleta auth user via Admin SDK não é possível no client —
-  // deixamos o registro de auth, mas removemos os dados
-}
-// Cria conta de aluno no Firebase Auth (email = cpf@imperio.app, senha = cpf)
-async function criarContaAluno(cpf, senha) {
-  const email = `${cpf}@imperio.app`;
-  try {
-    await createUserWithEmailAndPassword(fbSecondaryAuth, email, senha || cpf);
-  } catch(e) {
-    if (e.code !== "auth/email-already-in-use") throw e;
-  } finally {
-    if (fbSecondaryAuth.currentUser) {
-      try { await signOut(fbSecondaryAuth); } catch(e) {}
-    }
-  }
-}
-// Corrige o CPF de um aluno: recria o acesso de login com o CPF certo
-// (senha redefinida pro novo CPF) e move os dados pro novo documento.
-async function migrarCpfAluno(dadosCompletos, cpfAntigo, cpfNovo) {
-  await criarContaAluno(cpfNovo, cpfNovo);
-  await salvarAluno({ ...dadosCompletos, cpf:cpfNovo, id:cpfNovo });
-  if (cpfAntigo && cpfAntigo !== cpfNovo) {
-    await deletarAluno(cpfAntigo);
-  }
-}
-
+import { BIBLIOTECA_FULL, BIBLIOTECA } from "./data/exercises.js";
+import {
+  fbAuth,
+  db,
+  fbSecondaryAuth,
+  uploadToCloudinary,
+  salvarAluno,
+  buscarAlunos,
+  deletarAluno,
+  criarContaAluno,
+  migrarCpfAluno,
+} from "./services/backend.js";
 
 // ─── IMAGENS REAIS DE EXERCÍCIOS (Free Exercise DB — domínio público) ─────────
 const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
@@ -887,127 +802,6 @@ const GRUPOS_EMOJI = {
   "Panturrilha":"🦶","Cardio":"🏃","Alongamentos":"🧘",
   "Antebraço":"✊","Adutores":"🦵","Pescoço":"💆",
 };
-
-const BIBLIOTECA_FULL = [
-{id:"br_supino_reto",nome:"Supino reto",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supino-reto.jpg"},
-{id:"br_supino_inclinado",nome:"Supino inclinado",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supino-inclinado.jpg"},
-{id:"br_supino_declinado",nome:"Supino declinado",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supino-declinado.jpg"},
-{id:"br_supino_com_halteres",nome:"Supino com halteres",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supino-com-halteres.jpg"},
-{id:"br_supino_m_quina",nome:"Supino máquina",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supino-maquina.jpg"},
-{id:"br_crucifixo_reto",nome:"Crucifixo reto",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crucifixo-reto.jpg"},
-{id:"br_crucifixo_inclinado",nome:"Crucifixo inclinado",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crucifixo-inclinado.jpg"},
-{id:"br_crucifixo_declinado",nome:"Crucifixo declinado",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crucifixo-declinado.jpg"},
-{id:"br_crossover_alto",nome:"Crossover alto",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crossover-alto.jpg"},
-{id:"br_crossover_m_dio",nome:"Crossover médio",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crossover-medio.jpg"},
-{id:"br_crossover_baixo",nome:"Crossover baixo",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crossover-baixo.jpg"},
-{id:"br_peck_deck",nome:"Peck deck",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/peck-deck.jpg"},
-{id:"br_pullover",nome:"Pullover",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/pullover.jpg"},
-{id:"br_flex_o_de_bra_os",nome:"Flexão de braços",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/flexao-de-bracos.jpg"},
-{id:"br_chest_press",nome:"Chest press",nome_en:"",grupo:"Peito",principais:["Peitoral"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/chest-press.jpg"},
-{id:"br_puxada_frontal",nome:"Puxada frontal",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/puxada-frontal.jpg"},
-{id:"br_puxada_aberta",nome:"Puxada aberta",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/puxada-aberta.jpg"},
-{id:"br_puxada_fechada",nome:"Puxada fechada",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/puxada-fechada.jpg"},
-{id:"br_puxada_neutra",nome:"Puxada neutra",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/puxada-neutra.jpg"},
-{id:"br_remada_baixa",nome:"Remada baixa",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-baixa.jpg"},
-{id:"br_remada_curvada",nome:"Remada curvada",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-curvada.jpg"},
-{id:"br_remada_unilateral",nome:"Remada unilateral",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-unilateral.jpg"},
-{id:"br_remada_cavalinho",nome:"Remada cavalinho",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-cavalinho.jpg"},
-{id:"br_remada_m_quina",nome:"Remada máquina",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-maquina.jpg"},
-{id:"br_pulldown",nome:"Pulldown",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/pulldown.jpg"},
-{id:"br_barra_fixa",nome:"Barra fixa",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/barra-fixa.jpg"},
-{id:"br_barra_fixa_assistida",nome:"Barra fixa assistida",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/barra-fixa-assistida.jpg"},
-{id:"br_levantamento_terra",nome:"Levantamento terra",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/levantamento-terra.jpg"},
-{id:"br_remada_articulada",nome:"Remada articulada",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-articulada.jpg"},
-{id:"br_remada_alta",nome:"Remada alta",nome_en:"",grupo:"Costas",principais:["Latíssimo", "Trapézio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"8-12",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-alta.jpg"},
-{id:"br_desenvolvimento_com_barra",nome:"Desenvolvimento com barra",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/desenvolvimento-com-barra.jpg"},
-{id:"br_desenvolvimento_com_halteres",nome:"Desenvolvimento com halteres",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/desenvolvimento-com-halteres.jpg"},
-{id:"br_desenvolvimento_m_quina",nome:"Desenvolvimento máquina",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/desenvolvimento-maquina.jpg"},
-{id:"br_eleva__o_lateral",nome:"Elevação lateral",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-lateral.jpg"},
-{id:"br_eleva__o_frontal",nome:"Elevação frontal",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-frontal.jpg"},
-{id:"br_crucifixo_inverso",nome:"Crucifixo inverso",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/crucifixo-inverso.jpg"},
-{id:"br_face_pull",nome:"Face pull",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/face-pull.jpg"},
-{id:"br_desenvolvimento_arnold",nome:"Desenvolvimento Arnold",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/desenvolvimento-arnold.jpg"},
-{id:"br_remada_alta_para_ombros",nome:"Remada alta para ombros",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/remada-alta-para-ombros.jpg"},
-{id:"br_eleva__o_lateral_unilateral",nome:"Elevação lateral unilateral",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-lateral-unilateral.jpg"},
-{id:"br_eleva__o_frontal_com_barra",nome:"Elevação frontal com barra",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-frontal-com-barra.jpg"},
-{id:"br_eleva__o_frontal_com_halteres",nome:"Elevação frontal com halteres",nome_en:"",grupo:"Ombros",principais:["Deltóide"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-frontal-com-halteres.jpg"},
-{id:"br_rosca_direta",nome:"Rosca direta",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-direta.jpg"},
-{id:"br_rosca_alternada",nome:"Rosca alternada",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-alternada.jpg"},
-{id:"br_rosca_martelo",nome:"Rosca martelo",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-martelo.jpg"},
-{id:"br_rosca_scott",nome:"Rosca Scott",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-scott.jpg"},
-{id:"br_rosca_concentrada",nome:"Rosca concentrada",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-concentrada.jpg"},
-{id:"br_rosca_inversa",nome:"Rosca inversa",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-inversa.jpg"},
-{id:"br_rosca_na_polia",nome:"Rosca na polia",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-na-polia.jpg"},
-{id:"br_rosca_21",nome:"Rosca 21",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-21.jpg"},
-{id:"br_rosca_inclinada",nome:"Rosca inclinada",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-inclinada.jpg"},
-{id:"br_rosca_unilateral",nome:"Rosca unilateral",nome_en:"",grupo:"Bíceps",principais:["Bíceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-12",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-unilateral.jpg"},
-{id:"br_tr_ceps_pulley",nome:"Tríceps pulley",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-pulley.jpg"},
-{id:"br_tr_ceps_corda",nome:"Tríceps corda",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-corda.jpg"},
-{id:"br_tr_ceps_franc_s",nome:"Tríceps francês",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-frances.jpg"},
-{id:"br_tr_ceps_testa",nome:"Tríceps testa",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-testa.jpg"},
-{id:"br_tr_ceps_banco",nome:"Tríceps banco",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-banco.jpg"},
-{id:"br_coice_de_tr_ceps",nome:"Coice de tríceps",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/coice-de-triceps.jpg"},
-{id:"br_tr_ceps_unilateral",nome:"Tríceps unilateral",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-unilateral.jpg"},
-{id:"br_mergulho_nas_paralelas",nome:"Mergulho nas paralelas",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/mergulho-nas-paralelas.jpg"},
-{id:"br_tr_ceps_m_quina",nome:"Tríceps máquina",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/triceps-maquina.jpg"},
-{id:"br_extens_o_acima_da_cabe_a",nome:"Extensão acima da cabeça",nome_en:"",grupo:"Tríceps",principais:["Tríceps braquial"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"10-15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/extensao-acima-da-cabeca.jpg"},
-{id:"br_rosca_de_punho",nome:"Rosca de punho",nome_en:"",grupo:"Antebraço",principais:["Antebraço"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-de-punho.jpg"},
-{id:"br_rosca_de_punho_inversa",nome:"Rosca de punho inversa",nome_en:"",grupo:"Antebraço",principais:["Antebraço"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/rosca-de-punho-inversa.jpg"},
-{id:"br_prona__o_de_punho",nome:"Pronação de punho",nome_en:"",grupo:"Antebraço",principais:["Antebraço"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/pronacao-de-punho.jpg"},
-{id:"br_supina__o_de_punho",nome:"Supinação de punho",nome_en:"",grupo:"Antebraço",principais:["Antebraço"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/supinacao-de-punho.jpg"},
-{id:"br_caminhada_do_fazendeiro",nome:"Caminhada do fazendeiro",nome_en:"",grupo:"Antebraço",principais:["Antebraço"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/caminhada-do-fazendeiro.jpg"},
-{id:"br_abdominal_reto",nome:"Abdominal reto",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abdominal-reto.jpg"},
-{id:"br_abdominal_infra",nome:"Abdominal infra",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abdominal-infra.jpg"},
-{id:"br_abdominal_obl_quo",nome:"Abdominal oblíquo",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abdominal-obliquo.jpg"},
-{id:"br_abdominal_bicicleta",nome:"Abdominal bicicleta",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abdominal-bicicleta.jpg"},
-{id:"br_prancha",nome:"Prancha",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/prancha.jpg"},
-{id:"br_prancha_lateral",nome:"Prancha lateral",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/prancha-lateral.jpg"},
-{id:"br_eleva__o_de_pernas",nome:"Elevação de pernas",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-de-pernas.jpg"},
-{id:"br_abdominal_na_polia",nome:"Abdominal na polia",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abdominal-na-polia.jpg"},
-{id:"br_canivete",nome:"Canivete",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/canivete.jpg"},
-{id:"br_escalador",nome:"Escalador",nome_en:"",grupo:"Abdômen",principais:["Reto abdominal"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/escalador.jpg"},
-{id:"br_agachamento_livre",nome:"Agachamento livre",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/agachamento-livre.jpg"},
-{id:"br_agachamento_frontal",nome:"Agachamento frontal",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/agachamento-frontal.jpg"},
-{id:"br_agachamento_sum_",nome:"Agachamento sumô",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/agachamento-sumo.jpg"},
-{id:"br_leg_press_45",nome:"Leg press 45",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/leg-press-45.jpg"},
-{id:"br_leg_press_horizontal",nome:"Leg press horizontal",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/leg-press-horizontal.jpg"},
-{id:"br_cadeira_extensora",nome:"Cadeira extensora",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-extensora.jpg"},
-{id:"br_hack_squat",nome:"Hack squat",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/hack-squat.jpg"},
-{id:"br_afundo",nome:"Afundo",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/afundo.jpg"},
-{id:"br_passada",nome:"Passada",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/passada.jpg"},
-{id:"br_agachamento_b_lgaro",nome:"Agachamento búlgaro",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/agachamento-bulgaro.jpg"},
-{id:"br_agachamento_no_smith",nome:"Agachamento no Smith",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/agachamento-no-smith.jpg"},
-{id:"br_step_up",nome:"Step-up",nome_en:"",grupo:"Quadríceps",principais:["Quadríceps"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"10-15",descanso:"90s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/step-up.jpg"},
-{id:"br_mesa_flexora",nome:"Mesa flexora",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/mesa-flexora.jpg"},
-{id:"br_cadeira_flexora",nome:"Cadeira flexora",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-flexora.jpg"},
-{id:"br_flexora_em_p_",nome:"Flexora em pé",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/flexora-em-pe.jpg"},
-{id:"br_stiff",nome:"Stiff",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/stiff.jpg"},
-{id:"br_terra_romeno",nome:"Terra romeno",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/terra-romeno.jpg"},
-{id:"br_good_morning",nome:"Good morning",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/good-morning.jpg"},
-{id:"br_flex_o_n_rdica",nome:"Flexão nórdica",nome_en:"",grupo:"Posterior de Coxa",principais:["Isquiotibiais"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"10-12",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/flexao-nordica.jpg"},
-{id:"br_eleva__o_p_lvica",nome:"Elevação pélvica",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-pelvica.jpg"},
-{id:"br_coice_na_polia",nome:"Coice na polia",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/coice-na-polia.jpg"},
-{id:"br_coice_m_quina",nome:"Coice máquina",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/coice-maquina.jpg"},
-{id:"br_abdu__o_de_quadril",nome:"Abdução de quadril",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abducao-de-quadril.jpg"},
-{id:"br_ponte_de_gl_teo",nome:"Ponte de glúteo",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/ponte-de-gluteo.jpg"},
-{id:"br_avan_o",nome:"Avanço",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/avanco.jpg"},
-{id:"br_cadeira_abdutora",nome:"Cadeira abdutora",nome_en:"",grupo:"Glúteos",principais:["Glúteo máximo"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3-4",reps:"12-15",descanso:"75s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-abdutora.jpg"},
-{id:"br_cadeira_adutora",nome:"Cadeira adutora",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-adutora.jpg"},
-{id:"br_adu__o_na_polia",nome:"Adução na polia",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/aducao-na-polia.jpg"},
-{id:"br_afundo_lateral",nome:"Afundo lateral",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/afundo-lateral.jpg"},
-{id:"br_cadeira_abdutora_adutores",nome:"Cadeira abdutora",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/cadeira-abdutora.jpg"},
-{id:"br_abdu__o_na_polia",nome:"Abdução na polia",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/abducao-na-polia.jpg"},
-{id:"br_caminhada_lateral_com_el_stico",nome:"Caminhada lateral com elástico",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/caminhada-lateral-com-elastico.jpg"},
-{id:"br_eleva__o_lateral_de_perna",nome:"Elevação lateral de perna",nome_en:"",grupo:"Adutores",principais:["Adutores"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"3",reps:"15",descanso:"60s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/elevacao-lateral-de-perna.jpg"},
-{id:"br_panturrilha_em_p_",nome:"Panturrilha em pé",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-em-pe.jpg"},
-{id:"br_panturrilha_sentada",nome:"Panturrilha sentada",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-sentada.jpg"},
-{id:"br_panturrilha_no_leg_press",nome:"Panturrilha no leg press",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-no-leg-press.jpg"},
-{id:"br_panturrilha_unilateral",nome:"Panturrilha unilateral",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-unilateral.jpg"},
-{id:"br_panturrilha_no_smith",nome:"Panturrilha no Smith",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-no-smith.jpg"},
-{id:"br_panturrilha_no_hack",nome:"Panturrilha no hack",nome_en:"",grupo:"Panturrilha",principais:["Gastrocnêmio"],secundarios:[],equipamento:"",nivel:"Intermediário",passos:[],erros:[],cuidados:[],series:"4",reps:"15-20",descanso:"45s",video:"",img_url:"https://raw.githubusercontent.com/evelynnsg-collab/imperio-academia-app/main/public/exercicios/panturrilha-no-hack.jpg"}
-];
-const BIBLIOTECA = BIBLIOTECA_FULL;
-
 
 
 // ─── BIBLIOTECA MODAL (para admin montar treino) ───────────────────────────────
