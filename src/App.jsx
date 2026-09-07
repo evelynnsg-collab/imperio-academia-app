@@ -2001,12 +2001,18 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
   const T = useContext(ThemeContext);
   const [local,setLocal]=useState({...data,alimentos:[...(data.alimentos||[])]});
   const [newAlim,setNewAlim]=useState({nome:"",qtd:"",kcal:"",obs:""});
+  const [uploadPct,setUploadPct]=useState(null);
+  const [uploadErr,setUploadErr]=useState("");
   const imgRef=useRef();
   const handleImg=(e)=>{
     const file=e.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>setLocal(p=>({...p,img:ev.target.result}));
-    reader.readAsDataURL(file);
+    setUploadErr("");
+    const localPreview = URL.createObjectURL(file);
+    setLocal(p=>({...p,img:localPreview}));
+    setUploadPct(0);
+    uploadToCloudinary(file, pct=>setUploadPct(pct))
+      .then(({url})=>{ setLocal(p=>({...p,img:url})); setUploadPct(null); })
+      .catch(()=>{ setUploadErr("Não foi possível subir a imagem. Tenta de novo."); setUploadPct(null); });
   };
   const addAlim=()=>{
     if(!newAlim.nome.trim()) return;
@@ -2053,6 +2059,15 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
       <div style={{ marginBottom:12 }}>
         <label style={{ fontSize:11, color:T.text3, fontWeight:700, letterSpacing:0.8, display:"block", marginBottom:5 }}>IMAGEM OPCIONAL</label>
         {local.img && <img src={local.img} alt="" style={{ width:"100%", borderRadius:10, marginBottom:8, maxHeight:120, objectFit:"cover" }}/>}
+        {uploadPct!==null && (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ height:8, background:T.card2, borderRadius:50, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${uploadPct}%`, background:T.gold, borderRadius:50, transition:"width 0.2s" }}/>
+            </div>
+            <p style={{ margin:"4px 0 0", fontSize:11, color:T.text3, textAlign:"center" }}>Enviando... {uploadPct}%</p>
+          </div>
+        )}
+        {uploadErr && <p style={{ margin:"0 0 8px", color:T.red, fontSize:12 }}>{uploadErr}</p>}
         <input type="file" accept="image/*" ref={imgRef} style={{ display:"none" }} onChange={handleImg}/>
         <button onClick={()=>imgRef.current.click()} style={{ background:T.card2, border:`1px dashed ${T.border}`, borderRadius:10, padding:"10px 16px", color:T.text3, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:8, width:"100%" }}>
           <Ic n="image" size={16} color={T.text3}/>{local.img?"Trocar imagem":"Upload de imagem"}
@@ -2060,7 +2075,7 @@ const RefForm = ({ ref_name, data, onSave, onAddAlim, onRemoveAlim }) => {
       </div>
       <Inp label="VÍDEO EXPLICATIVO (link)" value={local.video||""} onChange={v=>setLocal(p=>({...p,video:v}))} placeholder="https://youtube.com/..."/>
 
-      <Btn onClick={()=>onSave(local)} style={{ width:"100%", color:T.bg, marginTop:8 }}>💾 Salvar refeição</Btn>
+      <Btn onClick={()=>onSave(local)} disabled={uploadPct!==null} style={{ width:"100%", color:T.bg, marginTop:8, opacity:uploadPct!==null?0.6:1 }}>{uploadPct!==null ? `Enviando... ${uploadPct}%` : "💾 Salvar refeição"}</Btn>
     </div>
   );
 };
