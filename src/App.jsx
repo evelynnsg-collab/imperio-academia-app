@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, createContext, useContext } f
 import html2canvas from "html2canvas";
 
 // ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, onSnapshot, serverTimestamp, query, orderBy } from "firebase/firestore";
 
@@ -15,9 +15,13 @@ const firebaseConfig = {
   appId: "1:583980259345:web:9425a8afb1325a66b779b0"
 };
 
-const fbApp  = initializeApp(firebaseConfig);
+const fbApp = getApps().find(app => app.name === "[DEFAULT]") || initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
-const db     = getFirestore(fbApp);
+const db = getFirestore(fbApp);
+
+// Auth secundário: cria/redefine contas de alunos sem trocar a sessão do admin/nutri.
+const fbSecondaryApp = getApps().find(app => app.name === "imperio-secondary-auth") || initializeApp(firebaseConfig, "imperio-secondary-auth");
+const fbSecondaryAuth = getAuth(fbSecondaryApp);
 
 // ─── UPLOAD DE ARQUIVOS (Cloudinary) ───────────────────────────────────────────
 // Fotos, GIFs e vídeos de exercícios/evolução agora sobem pro Cloudinary em vez
@@ -74,9 +78,13 @@ async function deletarAluno(id) {
 async function criarContaAluno(cpf, senha) {
   const email = `${cpf}@imperio.app`;
   try {
-    await createUserWithEmailAndPassword(fbAuth, email, senha || cpf);
+    await createUserWithEmailAndPassword(fbSecondaryAuth, email, senha || cpf);
   } catch(e) {
     if (e.code !== "auth/email-already-in-use") throw e;
+  } finally {
+    if (fbSecondaryAuth.currentUser) {
+      try { await signOut(fbSecondaryAuth); } catch(e) {}
+    }
   }
 }
 // Corrige o CPF de um aluno: recria o acesso de login com o CPF certo
@@ -740,14 +748,14 @@ const Card = ({ children, style={}, onClick }) => {
   const T = useContext(ThemeContext);
   return <div onClick={onClick} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.border}`, ...style, cursor:onClick?"pointer":"default" }}>{children}</div>;
 };
-const Btn = ({ children, onClick, color, style={}, small=false, outline=false, danger=false }) => {
+const Btn = ({ children, onClick, color, style={}, small=false, outline=false, danger=false, disabled=false }) => {
   const T = useContext(ThemeContext);
   color = color || T.yellow;
   const bg = danger ? T.red : outline ? "transparent" : color;
   const textColor = outline ? (danger ? T.red : color) : (color===T.yellow ? T.bg : T.text);
   const border = outline || danger ? `1px solid ${danger?T.red:color}` : "none";
   return (
-    <button onClick={onClick} style={{ background:outline?"transparent":(danger?T.red:`linear-gradient(135deg,${color},${color}DD)`), color:outline?(danger?T.red:color):textColor, border, borderRadius:10, padding:small?"8px 14px":"12px 18px", fontSize:small?12:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, ...style }}>
+    <button onClick={onClick} disabled={disabled} style={{ background:outline?"transparent":(danger?T.red:`linear-gradient(135deg,${color},${color}DD)`), color:outline?(danger?T.red:color):textColor, border, borderRadius:10, padding:small?"8px 14px":"12px 18px", fontSize:small?12:14, fontWeight:700, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.6:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, ...style }}>
       {children}
     </button>
   );
@@ -824,20 +832,42 @@ const Confirm = ({ msg, onYes, onNo, yesLabel="Excluir", danger=true }) => {
 };
 
 
+// ─── MÍDIA DE EXERCÍCIO COM CARREGAMENTO SOB DEMANDA ──────────────────────────
+const LazyExerciseVideo = ({ src, style={} }) => {
+  const videoRef = useRef(null);
+  const [ativo, setAtivo] = useState(false);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setAtivo(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      setAtivo(entry.isIntersecting);
+    }, { rootMargin: "180px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <video ref={videoRef} src={ativo ? src : undefined} autoPlay={ativo} loop muted playsInline preload="metadata"
+      style={{ width:"100%", height:"100%", objectFit:"contain", display:"block", ...style }}/>
+  );
+};
+
 // ─── COMPONENTE DE IMAGEM DO EXERCÍCIO (real + fallback SVG) ─────────────────
 const ExImg = ({ nome, musculo, cor, imgUrl, videoUrl, style={} }) => {
   const T = useContext(ThemeContext);
   const [imgOk, setImgOk] = useState(true);
   if (videoUrl) {
-    return (
-      <video src={videoUrl} autoPlay loop muted playsInline preload="auto"
-        style={{ width:"100%", height:"100%", objectFit:"contain", display:"block", background:T.bg2, ...style }}/>
-    );
+    return <LazyExerciseVideo src={videoUrl} style={{ background:T.bg2, ...style }}/>;
   }
   const src = imgUrl || getExImg(nome);
   if (src && imgOk) {
     return (
-      <img src={src} alt={nome} onError={()=>setImgOk(false)}
+      <img src={src} alt={nome} loading="lazy" decoding="async" onError={()=>setImgOk(false)}
         style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", ...style }}/>
     );
   }
@@ -1509,7 +1539,8 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
     setRedefinindo(true); setStatusRedefinir(null);
     try {
       const email = `${cpfLimpo}@imperio.app`;
-      await createUserWithEmailAndPassword(fbAuth, email, senhaAtual);
+      await createUserWithEmailAndPassword(fbSecondaryAuth, email, senhaAtual);
+      await signOut(fbSecondaryAuth);
       setStatusRedefinir({ ok:true, msg:`✓ Acesso criado. Login: ${cpfLimpo} · Senha: ${senhaAtual}` });
     } catch(e) {
       if (e.code === "auth/email-already-in-use") {
@@ -1600,7 +1631,7 @@ const AlunoDetalhe = ({ aluno, onBack, onSave, onDelete, soCardapio=false, aluno
   const TABS = soCardapio
     ? [{id:"cardapio",l:"🥗 Cardápio"}]
     : TABS_ALL;
-  const [tab,setTab]=useState("info");
+  const [tab,setTab]=useState(soCardapio ? "cardapio" : "info");
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, fontFamily:"system-ui,sans-serif", position:"relative", zIndex:0 }}>
@@ -3289,7 +3320,7 @@ const NutricaoAluno = () => {
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
           {videos.map((v, i) => (
             <div key={v.id} style={{ background:T.card, borderRadius:16, border:`1px solid ${T.green}33`, overflow:"hidden" }}>
-              <video src={v.url} controls style={{ width:"100%", maxHeight:220, background:"#000", display:"block" }}/>
+              <video src={v.url} controls preload="metadata" style={{ width:"100%", maxHeight:220, background:"#000", display:"block" }}/>
               <div style={{ padding:"14px 16px" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:v.legenda?10:0 }}>
                   <p style={{ margin:0, fontSize:13, fontWeight:700, color:T.green }}>Vídeo {i+1}</p>
@@ -3395,7 +3426,13 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
   // Verifica se o TREINO INTEIRO (todos os exercícios normais + todas as rodadas de bi-set/tri-set) já foi concluído
   // Data de hoje (usada pra saber se o progresso salvo ainda vale, ou se é
   // um novo dia e o treino deve começar zerado de novo)
-  const hojeStr = () => new Date().toISOString().slice(0,10);
+  const hojeStr = () => {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, "0");
+    const dia = String(agora.getDate()).padStart(2, "0");
+    return `${ano}-${mes}-${dia}`;
+  };
 
   // Carrega o progresso salvo do Firestore ao trocar de ficha (Treino A/B/C)
   // ou quando os dados do aluno chegam/atualizam
@@ -4051,16 +4088,43 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
 
 // ─── ALUNO APP FIREBASE WRAPPER ───────────────────────────────────────────────
 // Carrega dados do aluno em tempo real do Firestore
+const TelaErroCarregamento = ({ titulo, mensagem }) => (
+  <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative",zIndex:0}}>
+    <Watermark/>
+    <div style={{width:"100%",maxWidth:360,textAlign:"center",background:T.card,border:`1px solid ${T.red}44`,borderRadius:18,padding:24}}>
+      <p style={{fontSize:34,margin:"0 0 10px"}}>⚠️</p>
+      <p style={{color:T.text,fontSize:16,fontWeight:800,margin:"0 0 8px"}}>{titulo}</p>
+      <p style={{color:T.text3,fontSize:13,lineHeight:1.5,margin:"0 0 18px"}}>{mensagem}</p>
+      <button onClick={()=>window.location.reload()} style={{width:"100%",background:T.gold,border:"none",borderRadius:12,padding:13,color:T.bg,fontWeight:900,cursor:"pointer"}}>Tentar novamente</button>
+    </div>
+  </div>
+);
+
 const AlunoAppFirebase = ({ alunoId, onLogout, installPrompt }) => {
   const [aluno, setAluno] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
 
   useEffect(() => {
-    if (!alunoId) return;
-    const unsub = onSnapshot(doc(db, "alunos", alunoId), snap => {
-      if (snap.exists()) setAluno(snap.data());
+    setCarregando(true);
+    setErro("");
+    if (!alunoId) {
+      setErro("Não foi possível identificar o aluno conectado.");
       setCarregando(false);
-    });
+      return;
+    }
+    const unsub = onSnapshot(
+      doc(db, "alunos", alunoId),
+      snap => {
+        setAluno(snap.exists() ? snap.data() : null);
+        setCarregando(false);
+      },
+      e => {
+        console.error("Falha ao carregar perfil do aluno:", e);
+        setErro("Não foi possível carregar seu perfil agora. Verifique a conexão e tente novamente.");
+        setCarregando(false);
+      }
+    );
     return () => unsub();
   }, [alunoId]);
 
@@ -4076,6 +4140,8 @@ const AlunoAppFirebase = ({ alunoId, onLogout, installPrompt }) => {
     </div>
   );
 
+  if (erro) return <TelaErroCarregamento titulo="Erro ao carregar perfil" mensagem={erro}/>;
+
   if (!aluno) return (
     <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:0}}>
       <Watermark/>
@@ -4087,10 +4153,13 @@ const AlunoAppFirebase = ({ alunoId, onLogout, installPrompt }) => {
 };
 
 export default function App() {
-  const [auth,setAuth]   = useState(null);   // null | {role,id,uid}
+  const [auth,setAuth] = useState(null);
   const [alunos,setAlunos] = useState([]);
   const [carregando,setCarregando] = useState(true);
   const [installPrompt,setInstallPrompt] = useState(null);
+  const [erroInicial,setErroInicial] = useState("");
+  const [carregandoAlunos,setCarregandoAlunos] = useState(false);
+  const [erroAlunos,setErroAlunos] = useState("");
 
   // ── Captura o evento de instalação do PWA (Android/Chrome) ───────────────
   useEffect(() => {
@@ -4107,36 +4176,66 @@ export default function App() {
   // ── Auth state listener ──────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(fbAuth, async (user) => {
-      if (!user) { setAuth(null); setCarregando(false); return; }
+      setErroInicial("");
+      try {
+        if (!user) {
+          setAuth(null);
+          setAlunos([]);
+          setCarregandoAlunos(false);
+          return;
+        }
 
-      // Contas de equipe (admin/nutricionista/dono) via Firebase Auth
-      const CONTAS_EQUIPE = { "admin@imperio.app":"admin", "nutri@imperio.app":"nutri", "dono@imperio.app":"dono" };
-      if (CONTAS_EQUIPE[user.email]) {
-        setAuth({ role:CONTAS_EQUIPE[user.email], uid:user.uid });
-        setCarregando(false);
-        return;
-      }
+        const CONTAS_EQUIPE = { "admin@imperio.app":"admin", "nutri@imperio.app":"nutri", "dono@imperio.app":"dono" };
+        if (CONTAS_EQUIPE[user.email]) {
+          setCarregandoAlunos(true);
+          setAuth({ role:CONTAS_EQUIPE[user.email], uid:user.uid });
+          return;
+        }
 
-      // Aluno: busca dados no Firestore
-      const cpf = user.email.replace("@imperio.app","");
-      const snap = await getDoc(doc(db,"alunos",cpf));
-      if (snap.exists()) {
-        setAuth({ role:"aluno", id:cpf, uid:user.uid });
-      } else {
-        await signOut(fbAuth);
+        const email = user.email || "";
+        if (!email.endsWith("@imperio.app")) throw new Error("Conta autenticada inválida");
+        const cpf = email.replace("@imperio.app","");
+        const snap = await getDoc(doc(db,"alunos",cpf));
+        if (snap.exists()) {
+          setAuth({ role:"aluno", id:cpf, uid:user.uid });
+        } else {
+          await signOut(fbAuth);
+          setAuth(null);
+        }
+      } catch(e) {
+        console.error("Falha ao restaurar sessão:", e);
         setAuth(null);
+        setErroInicial("Não foi possível carregar sua conta agora. Verifique a conexão e tente novamente.");
+      } finally {
+        setCarregando(false);
       }
-      setCarregando(false);
     });
     return () => unsub();
   }, []);
 
-  // ── Carrega alunos em tempo real quando admin ou dono logado ─────────────
+  // ── Carrega alunos em tempo real para admin, dono e nutricionista ────────
   useEffect(() => {
-    if (!auth || (auth.role !== "admin" && auth.role !== "dono")) return;
-    const unsub = onSnapshot(collection(db,"alunos"), snap => {
-      setAlunos(snap.docs.map(d => d.data()));
-    });
+    const podeLerAlunos = auth && ["admin","dono","nutri"].includes(auth.role);
+    if (!podeLerAlunos) {
+      setCarregandoAlunos(false);
+      setErroAlunos("");
+      return;
+    }
+
+    setCarregandoAlunos(true);
+    setErroAlunos("");
+    const unsub = onSnapshot(
+      collection(db,"alunos"),
+      snap => {
+        setAlunos(snap.docs.map(d => d.data()));
+        setCarregandoAlunos(false);
+      },
+      e => {
+        console.error("Falha ao carregar alunos:", e);
+        setErroAlunos("Não foi possível carregar a lista de alunos agora. Verifique a conexão e tente novamente.");
+        setCarregandoAlunos(false);
+      }
+    );
     return () => unsub();
   }, [auth]);
 
@@ -4149,8 +4248,6 @@ export default function App() {
   // ── Adiciona aluno (cria auth + salva no Firestore) ──────────────────────
   const addAluno = useCallback(async (novoAluno) => {
     const cpfLimpo = String(novoAluno.cpf||"").replace(/\D/g,"");
-    // Se a senha não foi definida explicitamente (ficou igual ao CPF cru, com
-    // pontuação e tudo), usa o CPF já limpo pra não gerar senha desencontrada.
     const senhaFinal = (novoAluno.senha && novoAluno.senha !== novoAluno.cpf) ? novoAluno.senha : cpfLimpo;
     await criarContaAluno(cpfLimpo, senhaFinal);
     await salvarAluno({ ...novoAluno, cpf:cpfLimpo, senha:senhaFinal, id: cpfLimpo });
@@ -4162,18 +4259,16 @@ export default function App() {
     setAlunos(p => p.filter(a => a.id !== id));
   }, []);
 
-  // ── Login ─────────────────────────────────────────────────────────────────
   const handleLogin = async (role, id) => {
-    // Login já gerenciado pelo onAuthStateChanged
-    // Esta função é chamada pela LoginScreen após signIn bem-sucedido
+    // Login gerenciado pelo onAuthStateChanged.
   };
 
   const handleLogout = async () => {
     await signOut(fbAuth);
     setAuth(null);
+    setAlunos([]);
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   if (carregando) return (
     <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,position:"relative",zIndex:0}}>
       <Watermark/>
@@ -4185,7 +4280,18 @@ export default function App() {
     </div>
   );
 
+  if (erroInicial) return <TelaErroCarregamento titulo="Erro ao carregar o app" mensagem={erroInicial}/>;
+
   if (!auth) return <LoginScreen onLogin={handleLogin} />;
+
+  const precisaListaAlunos = ["admin","dono","nutri"].includes(auth.role);
+  if (precisaListaAlunos && carregandoAlunos) return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",zIndex:0}}>
+      <Watermark/>
+      <p style={{color:T.text3,fontSize:14}}>Carregando alunos...</p>
+    </div>
+  );
+  if (precisaListaAlunos && erroAlunos) return <TelaErroCarregamento titulo="Erro ao carregar alunos" mensagem={erroAlunos}/>;
 
   if (auth.role === "admin" || auth.role === "dono") return (
     <AdminPanel
@@ -4207,7 +4313,6 @@ export default function App() {
     />
   );
 
-  // Aluno: busca dados em tempo real do Firestore
   return (
     <AlunoAppFirebase
       alunoId={auth.id}
