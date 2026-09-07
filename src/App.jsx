@@ -2127,8 +2127,12 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
   // limpeza de arquivo é feita direto no painel do Cloudinary quando quiser)
   const deletarFoto = async (foto) => {
     const novaLista = fotos.filter(f => f.path !== foto.path);
-    await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
-    setFotos(novaLista);
+    try {
+      await updateDoc(doc(db, "alunos", alunoId), { fotos_evolucao: novaLista });
+      setFotos(novaLista);
+    } catch(e) {
+      setMsg("❌ Não foi possível remover a foto: " + e.message);
+    }
     setDelConfirm(null);
   };
 
@@ -2137,18 +2141,26 @@ const EvolucaoAdmin = ({ alunoId, alunoNome }) => {
     if (!newAv.data) return;
     const av = { ...newAv, realizadoPor: "Admin", id: Date.now() };
     const novaLista = [...avaliacoes, av].sort((a,b) => a.data > b.data ? 1 : -1);
-    await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
-    setAvaliacoes(novaLista);
-    setNewAv({ data: new Date().toISOString().split("T")[0], peso:"", bf:"", cintura:"", quadril:"", braco:"", obs:"" });
-    setShowAvForm(false);
-    setMsg("✅ Avaliação salva!");
-    setTimeout(() => setMsg(""), 2500);
+    try {
+      await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
+      setAvaliacoes(novaLista);
+      setNewAv({ data: new Date().toISOString().split("T")[0], peso:"", bf:"", cintura:"", quadril:"", braco:"", obs:"" });
+      setShowAvForm(false);
+      setMsg("✅ Avaliação salva!");
+      setTimeout(() => setMsg(""), 2500);
+    } catch(e) {
+      setMsg("❌ Não foi possível salvar a avaliação: " + e.message);
+    }
   };
 
   const deletarAvaliacao = async (id) => {
     const novaLista = avaliacoes.filter(a => a.id !== id);
-    await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
-    setAvaliacoes(novaLista);
+    try {
+      await updateDoc(doc(db, "alunos", alunoId), { avaliacoes: novaLista });
+      setAvaliacoes(novaLista);
+    } catch(e) {
+      setMsg("❌ Não foi possível remover a avaliação: " + e.message);
+    }
   };
 
   if (loading) return <div style={{ textAlign:"center", padding:40, color:T.text3 }}>Carregando...</div>;
@@ -3391,7 +3403,9 @@ const AlunoApp = ({ aluno, onUpdateAluno, onLogout, installPrompt }) => {
       ...(aluno.progresso || {}),
       [treinoAtivo]: { done: novoDone, seriesDone: novoSeriesDone, comemorado: !!jaComemorou, data: hojeStr() },
     };
-    onUpdateAluno({ ...aluno, progresso });
+    Promise.resolve(onUpdateAluno({ ...aluno, progresso })).catch(e => {
+      console.error("Falha ao salvar progresso do treino:", e);
+    });
   };
 
   const verificarTreinoCompleto = (doneAtualizado) => {
