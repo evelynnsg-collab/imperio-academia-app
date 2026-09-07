@@ -1,0 +1,35 @@
+name: Hotfix Firebase imports
+
+on:
+  push:
+    branches:
+      - refactor/organizar-app
+
+permissions:
+  contents: write
+
+jobs:
+  corrigir-e-validar:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Aplicar hotfix
+        run: node scripts/hotfix-firebase-imports.mjs
+      - name: Instalar dependências
+        run: npm ci
+      - name: Validar build
+        run: npm run build
+      - name: Salvar hotfix validado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx src/services/backend.js
+          git commit -m "fix: restaura imports Firebase após refatoração"
+          git push origin HEAD:refactor/organizar-app
